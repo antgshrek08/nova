@@ -38,6 +38,10 @@ const backendDir = app.isPackaged
   : path.join(__dirname, "..", "..", "backend");
 
 function resolvePythonExe() {
+  // The installers ship their own Python at backend/python
+  // (frontend/build/prepare_python.py); a source checkout uses backend/.venv.
+  const bundled = path.join(backendDir, "python", isWindows ? "python.exe" : path.join("bin", "python3"));
+  if (fs.existsSync(bundled)) return bundled;
   const candidates = isWindows
     ? [
         path.join(backendDir, ".venv", "Scripts", "python.exe"),
@@ -102,6 +106,8 @@ const WORKSPACE_MCP_ACCOUNTS = [
 ];
 
 function resolveWorkspaceMcpExe() {
+  const bundled = path.join(backendDir, "python", isWindows ? path.join("Scripts", "workspace-mcp.exe") : path.join("bin", "workspace-mcp"));
+  if (fs.existsSync(bundled)) return bundled;
   const candidates = isWindows
     ? [
         path.join(backendDir, ".venv", "Scripts", "workspace-mcp.exe"),

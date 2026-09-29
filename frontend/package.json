@@ -18,7 +18,8 @@
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
-    "dist:all": "npm run build && electron-builder -mwl"
+    "dist:all": "npm run build && electron-builder -mwl",
+    "prepare-python": "python build/prepare_python.py"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",
@@ -76,35 +77,13 @@
         "to": "backend",
         "filter": [
           "**/*",
+          "!.venv/**",
+          "!.venv-*/**",
           "!.env",
           "!uvicorn_out.log",
           "!uvicorn_err.log",
           "!**/__pycache__/**",
           "!**/*.pyc",
-          "!.venv/Lib/site-packages/torch/**",
-          "!.venv/Lib/site-packages/nvidia/**",
-          "!.venv/lib/python*/site-packages/torch/**",
-          "!.venv/lib/python*/site-packages/nvidia/**",
-          "!.venv/Lib/site-packages/piper/**",
-          "!.venv/Lib/site-packages/piper_tts-*/**",
-          "!.venv/Lib/site-packages/recurring_ical_events/**",
-          "!.venv/Lib/site-packages/recurring_ical_events-*/**",
-          "!.venv/Lib/site-packages/mouseinfo/**",
-          "!.venv/Lib/site-packages/mouseinfo-*/**",
-          "!.venv/Lib/site-packages/pymsgbox/**",
-          "!.venv/Lib/site-packages/pymsgbox-*/**",
-          "!.venv/Lib/site-packages/pykakasi/**",
-          "!.venv/Lib/site-packages/pykakasi-*/**",
-          "!.venv/lib/python*/site-packages/piper/**",
-          "!.venv/lib/python*/site-packages/piper_tts-*/**",
-          "!.venv/lib/python*/site-packages/recurring_ical_events/**",
-          "!.venv/lib/python*/site-packages/recurring_ical_events-*/**",
-          "!.venv/lib/python*/site-packages/mouseinfo/**",
-          "!.venv/lib/python*/site-packages/mouseinfo-*/**",
-          "!.venv/lib/python*/site-packages/pymsgbox/**",
-          "!.venv/lib/python*/site-packages/pymsgbox-*/**",
-          "!.venv/lib/python*/site-packages/pykakasi/**",
-          "!.venv/lib/python*/site-packages/pykakasi-*/**",
           "!models/piper/**",
           "!vendor/hermes-agent/.git/**",
           "!vendor/hermes-agent/tests/**",
@@ -124,7 +103,28 @@
           "!stress_chat.log",
           "!**/.env",
           "!**/*.pem",
-          "!**/credentials*.json"
+          "!**/credentials*.json",
+          "!python/Lib/site-packages/piper/**",
+          "!python/lib/python*/site-packages/piper/**",
+          "!python/Lib/site-packages/piper_tts-*/**",
+          "!python/lib/python*/site-packages/piper_tts-*/**",
+          "!python/Lib/site-packages/recurring_ical_events/**",
+          "!python/lib/python*/site-packages/recurring_ical_events/**",
+          "!python/Lib/site-packages/recurring_ical_events-*/**",
+          "!python/lib/python*/site-packages/recurring_ical_events-*/**",
+          "!python/Lib/site-packages/mouseinfo/**",
+          "!python/lib/python*/site-packages/mouseinfo/**",
+          "!python/Lib/site-packages/mouseinfo-*/**",
+          "!python/lib/python*/site-packages/mouseinfo-*/**",
+          "!python/Lib/site-packages/pymsgbox/**",
+          "!python/lib/python*/site-packages/pymsgbox/**",
+          "!python/Lib/site-packages/pymsgbox-*/**",
+          "!python/lib/python*/site-packages/pymsgbox-*/**",
+          "!python/Lib/site-packages/pykakasi/**",
+          "!python/lib/python*/site-packages/pykakasi/**",
+          "!python/Lib/site-packages/pykakasi-*/**",
+          "!python/lib/python*/site-packages/pykakasi-*/**",
+          "!python/**/__pycache__/**"
         ]
       }
     ],
@@ -149,7 +149,11 @@
       "category": "public.app-category.education",
       "icon": "public/icon.png",
       "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Nova listens for its wake word and to what you say when you talk to it.",
+        "NSAppleEventsUsageDescription": "Nova controls other apps when you ask it to."
+      }
     },
     "dmg": {
       "contents": [
@@ -172,7 +176,10 @@
         "tar.gz"
       ],
       "category": "Education",
-      "icon": "public/icon.png"
-    }
+      "icon": "public/icon.png",
+      "maintainer": "Anthony Grant <anthonygrant08@gmail.com>",
+      "synopsis": "A desktop AI assistant"
+    },
+    "copyright": "Copyright (c) 2026 Anthony Grant"
   }
 }

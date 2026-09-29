@@ -121,8 +121,14 @@ def _rect(ref) -> list[int]:
 
 
 def _text(ref) -> str:
+    """All of a control's text. Asked for by length: GTK4 answers an empty
+    string to the usual (0, -1) "to the end"."""
+    count = _prop(ref, "org.a11y.atspi.Text", "CharacterCount")
+    end = int(count) if isinstance(count, int) and count >= 0 else -1
+    if end == 0:
+        return ""
     try:
-        return str(_call(ref, "org.a11y.atspi.Text", "GetText", "ii", (0, -1))[0])
+        return str(_call(ref, "org.a11y.atspi.Text", "GetText", "ii", (0, end))[0])
     except Exception:  # noqa: BLE001
         return ""
 
