@@ -46,12 +46,6 @@ jeepney>=0.8; sys_platform == "linux"
 comtypes==1.4.11; sys_platform == "win32"
 psutil>=6.0
 
-# Wake-word detection (see app/wakeword.py). Fully local/offline, no
-# account or API key -- replaced Picovoice Porcupine after its free tier
-# was discontinued (2026-06-30). numpy is almost certainly already present
-# transitively (chromadb/onnxruntime both pull it) but pinned explicitly
-# since wakeword.py imports it directly for frame handling.
-openwakeword>=0.6
 numpy>=1.24
 
 # Local speech-to-text (see app/stt.py) -- replaces the browser's
@@ -63,7 +57,10 @@ faster-whisper>=1.0
 edge-tts==7.2.8
 # QR code of the phone setup link (Settings > Phone access).
 qrcode==8.2
-vosk==0.3.45
+# Wake word ("Hey Nova", app/wakeword.py): Vosk, offline. 0.3.45 has no macOS
+# build, so macOS takes the newest version that does.
+vosk==0.3.45; sys_platform != "darwin"
+vosk>=0.3.42,<0.4; sys_platform == "darwin"
 
 # Memory graph (Milestone 2, see app/graph.py) -- Graphify's own code-graph
 # extraction. Package name is "graphifyy" (double-y) on PyPI; the CLI it

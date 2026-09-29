@@ -36,7 +36,8 @@ connections. Every main screen has a **?** button with a short guide.
 
 ### Windows
 
-Download the installer from the [Releases](../../releases) page and run it.
+Download the installer from the [Releases](../../releases) page and run it. Releases have
+installers for macOS (.dmg) and Linux (.AppImage, .deb) too.
 
 Or from source: install [Python 3.12+](https://www.python.org/downloads/) and
 [Node.js 20+](https://nodejs.org), then:
@@ -74,13 +75,28 @@ Prefer a browser tab over the desktop app? Run `./mac/start-nova.sh` or
 Install [Ollama](https://ollama.com), then pick a model in onboarding or
 Settings, Models. Nova also works with only cloud models.
 
-## What differs by system
+## Windows, macOS and Linux
 
-Everything works everywhere except controlling other apps' windows directly
-(clicking buttons in another program for you), which uses Windows UI
-Automation and is Windows-only. On macOS and Linux Nova says so plainly
-instead of failing. Web browsing, homework, chat, code, memory and voice work
-the same on all three.
+Nova does the same things on all three, including using other apps for you:
+its own pointer that never moves your mouse, pressing buttons and filling in
+fields through each system's accessibility, typing any character (accents,
+emoji), reading windows even when they're covered, and the stop key and
+screen-corner gesture. Every change is tested on all three, including live
+tests where Nova uses real apps on real Windows, macOS and Linux desktops.
+
+What each system asks of you:
+
+- **macOS:** switch Nova on once in System Settings > Privacy & Security, under
+  Accessibility and Screen Recording. Onboarding takes you there. The stop key
+  is Control+Option+Esc.
+- **Linux:** works on X11 and Wayland. On Wayland the desktop asks once before
+  Nova takes screenshots or presses keys in other apps, and Nova works with
+  windows by their controls, since Wayland doesn't tell apps where other
+  windows are. If your desktop already uses Ctrl+Alt+Esc (KDE does), Nova uses
+  Ctrl+Alt+Shift+Esc and says so.
+- **Installers aren't code-signed yet.** Windows shows a SmartScreen warning
+  (More info, then Run anyway) and macOS asks you to right-click the app and
+  choose Open the first time.
 
 ## Your data
 

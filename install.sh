@@ -82,7 +82,7 @@ say "Building the Python environment"
 
 # Voice pulls PyTorch -- the biggest and most fragile download by far. Core
 # goes in first so a failed voice wheel never leaves Nova unable to start.
-VOICE_PKGS='chatterbox-tts|faster-whisper|piper-tts|vosk|openwakeword|setuptools'
+VOICE_PKGS='chatterbox-tts|faster-whisper|piper-tts|vosk|setuptools'
 CORE_REQ="$(mktemp)"
 grep -vE "^($VOICE_PKGS)" "$NOVA_DIR/backend/requirements.txt" > "$CORE_REQ"
 say "Installing Nova (core)"
@@ -94,7 +94,7 @@ say "Installing the browser Nova drives (Playwright Chromium)"
 
 if [ "$VOICE" = 1 ]; then
   say "Installing voice (optional -- Nova runs without it)"
-  if "$VENV/bin/python" -m pip install "setuptools<81" chatterbox-tts==0.1.7 faster-whisper vosk==0.3.45 openwakeword; then
+  if "$VENV/bin/python" -m pip install "setuptools<81" chatterbox-tts==0.1.7 faster-whisper "vosk>=0.3.42,<0.4"; then
     echo "Voice installed."
     "$VENV/bin/python" "$NOVA_DIR/backend/download_models.py" </dev/tty || warn "Voice models did not download. Retry: backend/.venv/bin/python backend/download_models.py"
   else

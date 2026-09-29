@@ -143,7 +143,8 @@ def test_macos_windows_screen_and_permissions():
             # Fill the document through accessibility, with characters no key has.
             doc = next(c for c in controls if c["type"] == "edit" and "type" in c["can"])
             asyncio.run(uia.act(wid, ref=doc["ref"], action="type", text="Zoë ✓", replace=True))
-            value = lambda: next(c.get("value") for c in asyncio.run(uia.controls(wid)) if c["ref"] == doc["ref"])
+            value = lambda: next((c.get("value") for c in asyncio.run(uia.controls(wid))
+                                  if c["type"] == "edit" and "type" in c["can"]), None)
             assert value() == "Zoë ✓"
             with pytest.raises(uia.UiaError):
                 asyncio.run(uia.act(wid, ref=doc["ref"], action="type", text="x"))

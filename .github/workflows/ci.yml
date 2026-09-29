@@ -30,7 +30,7 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install
         run: |
-          grep -vE '^(chatterbox-tts|faster-whisper|vosk|openwakeword)' requirements.txt > core.txt
+          grep -vE '^(chatterbox-tts|faster-whisper|vosk)' requirements.txt > core.txt
           python -m pip install --upgrade pip
           python -m pip install -r core.txt pytest pytest-asyncio
           python -m playwright install --with-deps chromium
@@ -84,7 +84,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb openbox zenity at-spi2-core dbus-x11 weston
       - name: Install
         run: |
-          grep -vE '^(chatterbox-tts|faster-whisper|vosk|openwakeword)' requirements.txt > core.txt
+          grep -vE '^(chatterbox-tts|faster-whisper|vosk)' requirements.txt > core.txt
           python -m pip install --upgrade pip
           python -m pip install -r core.txt pytest pytest-asyncio
       - name: Live test (Linux)
