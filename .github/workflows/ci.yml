@@ -111,7 +111,7 @@ jobs:
             sleep 2
             unset DISPLAY
             export WAYLAND_DISPLAY=wl-nova XDG_SESSION_TYPE=wayland GDK_BACKEND=wayland GNOME_ACCESSIBILITY=1
-            NOVA_LIVE_WAYLAND=1 python -m pytest tests/test_desktop_live.py -v -s -p no:cacheprovider -k wayland'
+            NOVA_LIVE_DESKTOP=1 NOVA_LIVE_WAYLAND=1 python -m pytest tests/test_desktop_live.py -v -s -p no:cacheprovider -k wayland'
       - name: Live test (macOS)
         if: runner.os == 'macOS'
         run: NOVA_LIVE_DESKTOP=1 python -m pytest tests/test_desktop_live.py -v -s -p no:cacheprovider

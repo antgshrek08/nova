@@ -246,7 +246,36 @@ function stopWorkspaceMcpProcesses() {
 // equivalent depending on platform. `path` is only set for packaged builds;
 // omitting it in dev leaves Electron to use its own dev executable, which is
 // harmless (just not meaningful) rather than wrong.
+// Linux has no login-item API: every desktop starts what's in
+// ~/.config/autostart (the XDG autostart spec), so Nova goes there.
+const linuxAutostart = path.join(app.getPath("home"), ".config", "autostart", "nova.desktop");
+
+function linuxLaunchAtLogin(enabled, miniplayerOnly) {
+  if (!enabled) {
+    fs.rmSync(linuxAutostart, { force: true });
+    return;
+  }
+  const exe = process.env.APPIMAGE || process.execPath;
+  const parts = [exe, ...(app.isPackaged ? [] : [app.getAppPath()]), ...(miniplayerOnly ? ["--nova-miniplayer-only"] : [])];
+  const exec = parts.map((p) => (/[\s"]/.test(p) ? `"${p.replace(/"/g, '\\"')}"` : p)).join(" ");
+  fs.mkdirSync(path.dirname(linuxAutostart), { recursive: true });
+  fs.writeFileSync(linuxAutostart, `[Desktop Entry]
+Type=Application
+Name=Nova
+Exec=${exec}
+X-GNOME-Autostart-enabled=true
+`);
+}
+
+function launchesAtLogin() {
+  return isLinux ? fs.existsSync(linuxAutostart) : app.getLoginItemSettings().openAtLogin;
+}
+
 function applyLaunchAtLogin(enabled, miniplayerOnly = true) {
+  if (isLinux) {
+    linuxLaunchAtLogin(enabled, miniplayerOnly);
+    return;
+  }
   app.setLoginItemSettings({
     openAtLogin: enabled,
     // Booting straight to the pet rather than the full window is the point of
@@ -260,7 +289,7 @@ function applyLaunchAtLogin(enabled, miniplayerOnly = true) {
 
 ipcMain.handle("set-launch-at-login", (_event, enabled, miniplayerOnly) => {
   applyLaunchAtLogin(Boolean(enabled), miniplayerOnly !== false);
-  return app.getLoginItemSettings().openAtLogin;
+  return launchesAtLogin();
 });
 
 // Whether the backend should listen beyond this machine. Stored in the same
