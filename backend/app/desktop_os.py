@@ -238,6 +238,13 @@ if MAC:
 
 elif LINUX:
     _local = threading.local()
+    # A Wayland session: native apps are not X windows. Nova still sees them
+    # through the accessibility bus (AT-SPI works the same under Wayland) and
+    # takes screenshots through the desktop's screenshot portal.
+    WAYLAND = os.environ.get("XDG_SESSION_TYPE") == "wayland" or bool(os.environ.get("WAYLAND_DISPLAY"))
+    _AX_IDS: dict[tuple, int] = {}   # (bus name, path) -> window id
+    _AX_BY_ID: dict[int, tuple] = {}
+    _AX_BASE = 0x7F000000
 
     def _display():
         """One X connection per thread (Xlib connections are not thread-safe)."""
@@ -300,7 +307,47 @@ elif LINUX:
         v = _prop(_display().screen().root, "_NET_ACTIVE_WINDOW")
         return int(v[0]) if v is not None and len(v) and v[0] else None
 
+    def _ax_id(ref: tuple) -> int:
+        if ref not in _AX_IDS:
+            _AX_IDS[ref] = _AX_BASE + len(_AX_IDS)
+            _AX_BY_ID[_AX_IDS[ref]] = ref
+        return _AX_IDS[ref]
+
+    def ax_window_ref(wid: int):
+        """The accessibility node of a window Nova found through AT-SPI."""
+        return _AX_BY_ID.get(int(wid))
+
+    def _ax_windows(known: list[dict]) -> list[dict]:
+        """Native Wayland windows, from the accessibility bus: every app's
+        top-level frames that X doesn't already list. Their position on
+        screen isn't something Wayland tells other apps, so they carry no
+        rect and are worked with by their controls (app_controls & co)."""
+        try:
+            from . import ax_linux
+            seen = {(w["pid"], w["title"]) for w in known}
+            out = []
+            for app_ref, pid, frames in ax_linux.top_level_windows():
+                for ref, title, active in frames:
+                    if not title or (pid, title) in seen:
+                        continue
+                    out.append({**_window(_ax_id(ref), title, _process_name(pid), pid, (0, 0, 0, 0), active),
+                                "via": "accessibility"})
+            return out
+        except Exception:  # noqa: BLE001
+            logger.debug("accessibility window list failed", exc_info=True)
+            return []
+
     def list_windows() -> list[dict]:
+        x_windows = _x_windows() if os.environ.get("DISPLAY") else []
+        if not WAYLAND:
+            return x_windows
+        extra = _ax_windows(x_windows)
+        if any(w["active"] for w in extra):
+            for w in x_windows:
+                w["active"] = False
+        return extra + x_windows
+
+    def _x_windows() -> list[dict]:
         hidden = _atom("_NET_WM_STATE_HIDDEN")
         active = _active_id()
         out = []
@@ -337,6 +384,8 @@ elif LINUX:
         d.sync()
 
     def activate(wid: int) -> bool:
+        if ax_window_ref(wid):
+            return False  # Wayland lets no app raise another's window
         from Xlib import X
         from Xlib.protocol import event as xevent
         d = _display()
@@ -349,6 +398,8 @@ elif LINUX:
 
     def capture(wid: int):
         """What the window shows on screen (its visible part)."""
+        if ax_window_ref(wid):
+            return None
         try:
             import mss
             from PIL import Image
@@ -460,6 +511,9 @@ elif LINUX:
     def close(wid: int) -> bool:
         """Ask the window manager to close it (_NET_CLOSE_WINDOW), the same
         request the title bar's X button makes."""
+        if ax_window_ref(wid):
+            from . import ax_linux
+            return ax_linux.close_frame(ax_window_ref(wid))
         from Xlib import X
         from Xlib.protocol import event as xevent
         d = _display()
@@ -469,13 +523,51 @@ elif LINUX:
         d.sync()
         return True
 
+    def screenshot_png() -> bytes | None:
+        """The whole screen on Wayland, where X can only see X apps: the
+        desktop's screenshot portal (GNOME asks once, then remembers), or the
+        compositor's own tool (grim on Sway/Hyprland, spectacle on KDE)."""
+        import shutil
+        import subprocess
+        import tempfile
+        try:
+            from . import portal
+            data = portal.screenshot()
+            if data:
+                return data
+        except Exception:  # noqa: BLE001
+            logger.debug("screenshot portal failed", exc_info=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "shot.png")
+            for cmd in (["grim", path], ["spectacle", "-b", "-n", "-f", "-o", path], ["gnome-screenshot", "-f", path]):
+                if shutil.which(cmd[0]):
+                    try:
+                        subprocess.run(cmd, check=True, timeout=15, capture_output=True)
+                        with open(path, "rb") as f:
+                            return f.read()
+                    except Exception:  # noqa: BLE001
+                        continue
+        return None
+
     def permissions() -> dict:
-        return {"accessibility": True, "screen": bool(os.environ.get("DISPLAY"))}
+        return {"accessibility": True, "screen": bool(os.environ.get("DISPLAY") or WAYLAND)}
 
     def request_permissions() -> dict:
         return permissions()
 
 
+if not LINUX:
+    WAYLAND = False
+
+    def screenshot_png() -> bytes | None:
+        return None
+
+    def ax_window_ref(wid: int):
+        return None
+
+
+if MAC or LINUX:
+    pass
 else:  # Windows is handled in desktop.py; these keep imports honest elsewhere.
     def list_windows() -> list[dict]:
         raise Unavailable("desktop_os is for macOS and Linux.")
@@ -501,7 +593,7 @@ def window_at(x: int, y: int) -> dict | None:
     """The frontmost window containing a screen point."""
     for w in list_windows():
         left, top, right, bottom = w["rect"]
-        if left <= x < right and top <= y < bottom:
+        if right > left and left <= x < right and top <= y < bottom:
             return w
     return None
 
@@ -511,8 +603,8 @@ def fullscreen_app() -> dict | None:
     fullscreen video)."""
     try:
         w = active_window()
-        if not w:
-            return None
+        if not w or w.get("via") == "accessibility":
+            return None  # Wayland doesn't say where other apps' windows are
         wl, wt, wr, wb = w["rect"]
         for m in monitors():
             ml, mt, mr, mb = m

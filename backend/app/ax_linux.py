@@ -205,10 +205,12 @@ _refs: dict[int, list] = {}
 
 def controls_sync(wid: int, limit: int = 250) -> list[dict]:
     from . import desktop_os, uia
-    w = desktop_os.window(wid)
-    if not w:
-        raise AxError("That window is gone.")
-    root = _window_ref(w.get("pid"), w["title"])
+    root = desktop_os.ax_window_ref(wid)  # a Wayland window found through accessibility
+    if root is None:
+        w = desktop_os.window(wid)
+        if not w:
+            raise AxError("That window is gone.")
+        root = _window_ref(w.get("pid"), w["title"])
     if root is None:
         raise AxError("That window doesn't expose its controls to accessibility.")
     elements, entries, queue, seen = [], [], [root], 0
@@ -336,3 +338,70 @@ def tree_summary(depth: int = 2) -> list:
         return item
 
     return [dict(node(app, 0), pid=_pid_of(app[0])) for app in _children(root)]
+
+
+FRAME_ROLES = {"frame", "dialog", "window", "alert", "file chooser"}
+ACTIVE = 1
+
+
+def top_level_windows() -> list:
+    """(app, pid, [(frame, title, is_active)]) for every app on the bus --
+    how Nova sees windows on Wayland, where they aren't X windows."""
+    root = ("org.a11y.atspi.Registry", "/org/a11y/atspi/accessible/root")
+    out = []
+    for app in _children(root):
+        frames = []
+        for frame in _children(app):
+            try:
+                role = str(_call(frame, ACC, "GetRoleName")[0])
+            except Exception:  # noqa: BLE001
+                continue
+            if role not in FRAME_ROLES:
+                continue
+            states = _states(frame)
+            if not _has(states, SHOWING):
+                continue
+            frames.append((frame, str(_prop(frame, ACC, "Name") or "").strip(), _has(states, ACTIVE)))
+        if frames:
+            out.append((app, _pid_of(app[0]), frames))
+    return out
+
+
+def close_frame(frame) -> bool:
+    """Close a window by pressing its own Close button (the title bar's X),
+    the way the user would -- so the app can still ask about unsaved work."""
+    queue, seen = [frame], 0
+    while queue and seen < 400:
+        ref = queue.pop(0)
+        seen += 1
+        try:
+            role = str(_call(ref, ACC, "GetRoleName")[0])
+        except Exception:  # noqa: BLE001
+            continue
+        name = str(_prop(ref, ACC, "Name") or "").strip().lower()
+        if role in ("push button", "button") and name == "close":
+            return _do_action(ref, PRESS_WORDS)
+        queue.extend(_children(ref))
+    return False
+
+
+FOCUSED = 12
+
+
+def type_into_focused(frame, text: str) -> str | None:
+    """Insert text at the caret of the focused field in a window, through
+    accessibility -- how Nova types into native Wayland apps, which X
+    keystrokes can't reach. Returns the field's name, or None if no
+    editable field has focus."""
+    queue, seen = [frame], 0
+    while queue and seen < MAX_NODES:
+        ref = queue.pop(0)
+        seen += 1
+        states = _states(ref)
+        if _has(states, FOCUSED) and _has(states, EDITABLE) and "org.a11y.atspi.EditableText" in _interfaces(ref):
+            caret = _prop(ref, "org.a11y.atspi.Text", "CaretOffset")
+            position = int(caret) if isinstance(caret, int) and caret >= 0 else len(_text(ref))
+            _call(ref, "org.a11y.atspi.EditableText", "InsertText", "isi", (position, text, len(text)))
+            return str(_prop(ref, ACC, "Name") or "")
+        queue.extend(_children(ref))
+    return None

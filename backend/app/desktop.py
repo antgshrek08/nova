@@ -185,6 +185,12 @@ async def capture_screenshot() -> bytes:
     def _capture() -> bytes:
         from PIL import Image  # deferred: heavy import, only needed here
 
+        if sys.platform.startswith("linux") and _os().WAYLAND:
+            # X can only see X apps here; the desktop's own screenshot sees all.
+            data = _os().screenshot_png()
+            if data:
+                return data
+
         with mss.mss() as sct:
             monitor = sct.monitors[0]  # index 0 = union of all monitors
             shot = sct.grab(monitor)
@@ -436,8 +442,21 @@ async def type_text(text: str, expect_window: str | None = None) -> dict:
         if os.name == 'nt':
             from .unicode_input import type_unicode
             type_unicode(text, check_abort, pyautogui.press)
-        else:
-            _os().type_unicode(text, check_abort)
+            return
+        frame = _os().ax_window_ref(_foreground()) if _os().WAYLAND else None
+        if frame is not None:
+            # A native Wayland app: X keystrokes can't reach it, accessibility can.
+            check_abort()
+            from . import ax_linux
+            if ax_linux.type_into_focused(frame, text) is None:
+                # Not a text field (a canvas, a terminal): real key presses through the portal.
+                from . import portal
+                for ch in text:
+                    check_abort()
+                    k = keysym_for({"\n": "enter", "\t": "tab"}.get(ch, ch))
+                    portal.send_keysyms([(k, True), (k, False)])
+            return
+        _os().type_unicode(text, check_abort)
 
     try:
         await asyncio.to_thread(_type)
@@ -614,6 +633,30 @@ async def scroll(clicks: int, x: int | None = None, y: int | None = None,
     return {"clicks": clicks, "x": x, "y": y}
 
 
+# X keysyms for key names: how keys reach native Wayland apps (portal.py).
+_KEYSYMS = {
+    "ctrl": 0xFFE3, "shift": 0xFFE1, "alt": 0xFFE9, "win": 0xFFEB, "super": 0xFFEB,
+    "enter": 0xFF0D, "escape": 0xFF1B, "tab": 0xFF09, "backspace": 0xFF08, "delete": 0xFFFF,
+    "home": 0xFF50, "left": 0xFF51, "up": 0xFF52, "right": 0xFF53, "down": 0xFF54,
+    "pageup": 0xFF55, "pagedown": 0xFF56, "end": 0xFF57, "insert": 0xFF63, "space": 0x20,
+    **{f"f{n}": 0xFFBE + n - 1 for n in range(1, 13)},
+}
+
+
+def keysym_for(name: str) -> int:
+    if name in _KEYSYMS:
+        return _KEYSYMS[name]
+    if len(name) == 1:
+        cp = ord(name)
+        return cp if 0x20 <= cp <= 0x7E or 0xA0 <= cp <= 0xFF else 0x01000000 | cp
+    raise DesktopActionError(f"Unknown key {name!r}.")
+
+
+def _wayland_native_focus() -> bool:
+    """Is a native Wayland app in front (one X keystrokes can't reach)?"""
+    return bool(sys.platform.startswith("linux") and _os().WAYLAND and _os().ax_window_ref(_foreground()))
+
+
 _KEY_ALIASES = {
     "esc": "escape", "return": "enter", "del": "delete", "ins": "insert",
     "pgup": "pageup", "pgdn": "pagedown", "cmd": "win", "meta": "win",
@@ -629,7 +672,8 @@ async def press_keys(keys: str, expect_window: str | None = None) -> dict:
     with more at stake: `ctrl+a delete` in the wrong window destroys a document
     in two keystrokes, and unlike typing it leaves nothing behind to recognise.
     """
-    _require("input")
+    if not _wayland_native_focus():
+        _require("input")
     sequence = [chunk for chunk in str(keys).strip().split() if chunk]
     if not sequence:
         raise DesktopActionError("No keys given.")
@@ -645,9 +689,15 @@ async def press_keys(keys: str, expect_window: str | None = None) -> dict:
             )
 
     def _press():
+        wayland = _wayland_native_focus()
         for chord in sequence:
             parts = [_KEY_ALIASES.get(p.strip().lower(), p.strip().lower())
                      for p in chord.split("+") if p.strip()]
+            if wayland:
+                from . import portal
+                syms = [keysym_for(k) for k in parts]
+                portal.send_keysyms([(k, True) for k in syms] + [(k, False) for k in reversed(syms)])
+                continue
             if len(parts) == 1:
                 pyautogui.press(parts[0])
             else:

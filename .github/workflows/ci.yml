@@ -81,7 +81,7 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Desktop for the test (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb openbox zenity at-spi2-core dbus-x11
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb openbox zenity at-spi2-core dbus-x11 weston
       - name: Install
         run: |
           grep -vE '^(chatterbox-tts|faster-whisper|vosk|openwakeword)' requirements.txt > core.txt
@@ -100,6 +100,18 @@ jobs:
             sleep 2
             export GNOME_ACCESSIBILITY=1 NO_AT_BRIDGE=0
             NOVA_LIVE_DESKTOP=1 python -m pytest tests/test_desktop_live.py -v -s -p no:cacheprovider'
+      - name: Live test (Linux, Wayland)
+        if: runner.os == 'Linux'
+        run: |
+          export XDG_RUNTIME_DIR=$(mktemp -d) && chmod 700 "$XDG_RUNTIME_DIR"
+          dbus-run-session -- bash -c '
+            weston --backend=headless-backend.so --socket=wl-nova --idle-time=0 &
+            sleep 3
+            /usr/libexec/at-spi-bus-launcher --launch-immediately &
+            sleep 2
+            unset DISPLAY
+            export WAYLAND_DISPLAY=wl-nova XDG_SESSION_TYPE=wayland GDK_BACKEND=wayland GNOME_ACCESSIBILITY=1
+            NOVA_LIVE_WAYLAND=1 python -m pytest tests/test_desktop_live.py -v -s -p no:cacheprovider -k wayland'
       - name: Live test (macOS)
         if: runner.os == 'macOS'
         run: NOVA_LIVE_DESKTOP=1 python -m pytest tests/test_desktop_live.py -v -s -p no:cacheprovider

@@ -63,7 +63,8 @@ if [ "$OS" != "Darwin" ]; then
   esac
   # Clipboard and window tools Nova uses when they are there.
   command -v xclip >/dev/null || command -v wl-copy >/dev/null || NEED+=(xclip)
-  command -v wmctrl >/dev/null || NEED+=(wmctrl)
+  # The accessibility bus apps use to show Nova their buttons and fields.
+  [ -x /usr/libexec/at-spi-bus-launcher ] || [ -x /usr/lib/at-spi2-core/at-spi-bus-launcher ] || [ -x /usr/lib/at-spi-bus-launcher ]     || NEED+=(at-spi2-core)
 fi
 if [ ${#NEED[@]} -gt 0 ]; then
   echo "Installing: ${NEED[*]}"
@@ -100,6 +101,12 @@ if [ "$VOICE" = 1 ]; then
     warn "Voice did not install. Nova still works, and the online voices in Settings > Voice need nothing extra."
     warn "Retry later with: ./install.sh"
   fi
+fi
+
+if [ "$OS" != "Darwin" ] && command -v gsettings >/dev/null; then
+  # GNOME: make apps publish their controls to accessibility (what lets Nova
+  # press buttons and fill fields in them, like it does on Windows and macOS).
+  gsettings set org.gnome.desktop.interface toolkit-accessibility true 2>/dev/null || true
 fi
 
 say "Checking that Nova starts on this machine"

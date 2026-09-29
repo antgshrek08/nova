@@ -164,3 +164,28 @@ def test_macos_windows_screen_and_permissions():
                 asyncio.run(uia.controls(windows[0]["hwnd"]))
     finally:
         subprocess.run(["osascript", "-e", 'tell application "TextEdit" to quit saving no'], check=False)
+
+
+@pytest.mark.skipif(os.environ.get("NOVA_LIVE_WAYLAND") != "1", reason="needs a Wayland session (NOVA_LIVE_WAYLAND=1)")
+def test_wayland_native_app_through_accessibility():
+    """A native Wayland app is no X window: Nova finds and uses it through
+    the accessibility bus alone."""
+    from app import desktop_os, uia
+
+    assert desktop_os.WAYLAND and not os.environ.get("DISPLAY")
+    dialog = subprocess.Popen(["zenity", "--entry", "--title", "Nova wayland test", "--text", "Your name"],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        window = _wait_for(lambda: next((w for w in desktop_os.list_windows() if w["title"] == "Nova wayland test"), None))
+        assert window, desktop_os.list_windows()
+        assert window.get("via") == "accessibility" and window["pid"] == dialog.pid
+        controls = _wait_for(lambda: _try_controls(uia, window["hwnd"]))
+        print(uia.describe(controls))
+        field = next(c for c in controls if c["type"] == "edit")
+        asyncio.run(uia.act(window["hwnd"], ref=field["ref"], action="type", text="Wayland ✓"))
+        asyncio.run(uia.act(window["hwnd"], name="OK", action="press"))
+        out, _err = dialog.communicate(timeout=10)
+        assert out.strip() == "Wayland ✓"
+    finally:
+        if dialog.poll() is None:
+            dialog.kill()
