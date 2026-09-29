@@ -172,8 +172,7 @@
     "linux": {
       "target": [
         "AppImage",
-        "deb",
-        "tar.gz"
+        "deb"
       ],
       "category": "Education",
       "icon": "public/icon.png",
