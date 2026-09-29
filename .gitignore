@@ -1,0 +1,77 @@
+# Secrets
+.env
+*.env
+!.env.example
+
+# Python
+backend/.venv/
+backend/models/
+backend/vendor/
+backend/.venv-hermes/
+backend/.hermes/
+__pycache__/
+*.pyc
+
+# Node / Electron / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/dist-electron/
+frontend/release/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# design-sync (claude.ai/design)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+
+# Character art generation scratch (candidates for human review, not final assets)
+character-gen/
+
+# Graphify's own generated index (Milestone 2: Memory) -- a rebuildable
+# derived cache (run `POST /memory/graph/reindex`), never a source note.
+# Kept out of git for the same reason dist/build output is: regenerate it,
+# don't diff it. See backend/app/graph.py.
+graphify-out/
+backend/.venv-mcp/
+backend/models/mcp-memory.jsonl
+
+
+# Verification artifacts, not source: screen recordings, contact sheets and
+# screenshots produced while checking the reactor/workspace UI. Regenerate them
+# by re-running the capture scripts beside them -- same reasoning as dist/.
+frontend/reactor-preview/build/
+Claude outputs/
+
+# Tailscale certificates. `tailscale cert` writes these into the working
+# directory, and a private key must never enter the repository.
+*.ts.net.crt
+*.ts.net.key
+
+# Live session cookies for the user's real accounts (browser_control's
+# persistent profile) and the Web Push signing key. Both normally live beside
+# the database, outside this tree -- these entries only matter if DB_PATH is
+# ever pointed inside the repo, which is exactly the kind of accident that put
+# a TLS private key on a remote earlier in this project.
+browser-profile/
+vapid-keys.json
+
+# Private data and local-only files: never part of the public repository.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backend/uvicorn_*.txt
+app.asar
+extracted_asar/
+voice-samples/
+.claude/
+.design-sync/

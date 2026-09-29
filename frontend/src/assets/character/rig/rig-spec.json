@@ -1,0 +1,86 @@
+{
+  "canvas_size": [
+    1658,
+    2016
+  ],
+  "part_sizes": {
+    "torso": [
+      1069,
+      1674
+    ],
+    "arm-left": [
+      654,
+      372
+    ],
+    "arm-right": [
+      650,
+      372
+    ],
+    "leg-left": [
+      536,
+      417
+    ],
+    "leg-right": [
+      532,
+      417
+    ]
+  },
+  "part_positions_on_canvas": {
+    "torso": [
+      295,
+      0
+    ],
+    "arm-left": [
+      0,
+      1081
+    ],
+    "arm-right": [
+      1008,
+      1081
+    ],
+    "leg-left": [
+      306,
+      1599
+    ],
+    "leg-right": [
+      810,
+      1599
+    ]
+  },
+  "joint_pivots_on_canvas": {
+    "shoulder-left": [
+      627,
+      1097
+    ],
+    "shoulder-right": [
+      1035,
+      1097
+    ],
+    "hip-left": [
+      816,
+      1627
+    ],
+    "hip-right": [
+      836,
+      1627
+    ]
+  },
+  "joint_pivot_within_part": {
+    "arm-left": [
+      627,
+      16
+    ],
+    "arm-right": [
+      27,
+      16
+    ],
+    "leg-left": [
+      510,
+      28
+    ],
+    "leg-right": [
+      26,
+      28
+    ]
+  }
+}

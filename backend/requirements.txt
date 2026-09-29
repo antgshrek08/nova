@@ -1,0 +1,89 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+litellm>=1.50
+python-dotenv>=1.0
+httpx>=0.27
+pydantic>=2.7
+aiosqlite>=0.20
+python-multipart>=0.0.9
+chromadb>=0.5
+mcp>=2.1
+PyYAML>=6.0,<7
+chatterbox-tts==0.1.7
+# Note (2026-09-03, integration-plan Phase 1b, verified live): the pinned
+# 0.1.7 wheel already ships `chatterbox.tts_turbo` -- confirmed by importing
+# ChatterboxTurboTTS from the actual installed venv, no upgrade needed to use
+# CHATTERBOX_TURBO=true in app/tts.py. See RESEARCH.md's Turbo correction
+# entry (2026-09-03) for the real /tts timing comparison and a voice-length
+# incompatibility this pin surfaced.
+# chatterbox's watermarking dep (resemble-perth) needs pkg_resources, which
+# setuptools>=81 no longer bundles -- pin below that so it imports.
+setuptools<81
+
+# Scoped desktop interaction (see app/desktop.py). pywin32 (win32gui/
+# win32process) is already a transitive dep of something else here and used
+# for window enumeration; mss/pyautogui are the new ones for screenshots and
+# mouse/keyboard control.
+#
+# pyautogui is pinned to Windows. On Linux it wants python3-xlib and a live
+# X display at import time, so on a Fedora laptop it turns a working install
+# into a failed one -- to provide mouse and keyboard control of a desktop
+# whose windows Nova cannot enumerate anyway (that half is win32-only). It is
+# not silently degraded: desktop.py reports exactly what is missing and why,
+# and every affected tool answers with that sentence instead of a traceback.
+# mss stays unguarded -- it is pure Python, imports anywhere, and only needs
+# a display when a screenshot is actually taken.
+mss>=9.0
+pyautogui>=0.9; sys_platform == "win32"
+# Windows UI Automation for Nova's own pointer (app/uia.py): pressing buttons
+# and filling fields through the accessibility tree instead of the real mouse,
+# which is what lets Nova work in an app while the user is in a game.
+comtypes==1.4.11; sys_platform == "win32"
+psutil>=6.0
+
+# Wake-word detection (see app/wakeword.py). Fully local/offline, no
+# account or API key -- replaced Picovoice Porcupine after its free tier
+# was discontinued (2026-06-30). numpy is almost certainly already present
+# transitively (chromadb/onnxruntime both pull it) but pinned explicitly
+# since wakeword.py imports it directly for frame handling.
+openwakeword>=0.6
+numpy>=1.24
+
+# Local speech-to-text (see app/stt.py) -- replaces the browser's
+# webkitSpeechRecognition for the Chat tab's mic button, which doesn't
+# work in Electron (Google gates its cloud recognition service to official
+# Chrome builds).
+faster-whisper>=1.0
+piper-tts==1.8.0
+# The online voices in Settings > Voice (app/fast_speech.py); no API key.
+edge-tts==7.2.8
+# QR code of the phone setup link (Settings > Phone access).
+qrcode==8.2
+# Repeating events from calendar links (app/calendar_sources.py).
+recurring-ical-events==3.8.0
+vosk==0.3.45
+
+# Memory graph (Milestone 2, see app/graph.py) -- Graphify's own code-graph
+# extraction. Package name is "graphifyy" (double-y) on PyPI; the CLI it
+# installs is `graphify`. Used here only in `graphify update --no-cluster`
+# mode, which is tree-sitter-only (confirmed live: "re-extract code files
+# ... no LLM needed") -- no API key, no local-model requirement even, for
+# the code-structure layer. Optional LLM-assisted cluster naming exists in
+# graphify itself but is never invoked by this app.
+graphifyy>=0.9
+playwright==1.62.0
+pypdf>=5.0
+
+# Credential vault (see app/secrets_store.py). Stores secrets in Windows
+# Credential Manager so Nova can type a password without the value ever
+# entering a prompt, a transcript, or the memory index.
+keyring>=25.0
+# Web Push, so Nova can reach the phone unprompted (see push.py). Pulls
+# py-vapid and http-ece for the VAPID signing and payload encryption; both
+# are pure Python on top of `cryptography`, which is already here transitively,
+# so this adds no build step on Linux.
+pywebpush>=2.0
+
+# Interactive terminal (see app/terminal.py). A PTY rather than pipes, so
+# programs that check isatty() behave normally and interactive ones work at all.
+pywinpty>=2.0; sys_platform == "win32"

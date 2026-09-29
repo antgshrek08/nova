@@ -1,0 +1,207 @@
+@import "katex/dist/katex.min.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.katex, .katex * {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+.katex .vlist-t, .katex .vlist-t2, .katex .vlist-r, .katex .vlist, .katex .mord, .katex .mrel, .katex .mbin {
+  white-space: nowrap !important;
+}
+.katex-display {
+  margin: 0.75em 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+
+   The app's palette is charcoal (neutral gray surfaces, deliberately not
+   Tailwind's blue-leaning slate) with emerald accents -- see tailwind.config.js.
+   These CSS variables mirror the Tailwind scale so that rules in this file, and
+   anything drawn to a canvas, can reference the same values instead of
+   re-hardcoding hex codes that then drift from the Tailwind classes.
+   --------------------------------------------------------------------------- */
+:root {
+  --nova-surface-950: #0a0b0c;
+  --nova-surface-900: #131416;
+  --nova-surface-850: #191b1e;
+  --nova-surface-800: #202226;
+  --nova-surface-700: #2b2e33;
+  --nova-surface-600: #3a3e44;
+  --nova-text-dim: #8b9098;   /* charcoal-400 */
+  --nova-text: #e6ebe8;       /* charcoal-100 */
+  --nova-accent: #3b82f6;
+  --nova-accent-strong: #2563eb;
+
+  /* Global Customizable Accent Theme */
+  --accent: #3b82f6;
+  --accent-rgb: 59, 130, 246;
+  --accent-subtle: rgba(59, 130, 246, 0.12);
+  --accent-border: rgba(59, 130, 246, 0.3);
+  --accent-hover: rgba(59, 130, 246, 0.85);
+  --accent-glow: rgba(59, 130, 246, 0.25);
+
+  color-scheme: dark;
+}
+
+.text-accent { color: var(--accent) !important; }
+.bg-accent { background-color: var(--accent) !important; }
+.bg-accent-subtle { background-color: var(--accent-subtle) !important; }
+.border-accent { border-color: var(--accent-border) !important; }
+.ring-accent { --tw-ring-color: var(--accent) !important; }
+.shadow-accent { box-shadow: 0 0 20px -3px var(--accent-glow) !important; }
+
+/* ---------------------------------------------------------------------------
+   Typographic baseline
+
+   No web font is loaded on purpose: N.O.V.A. is a local-first desktop app that
+   must render identically with no network, so it uses the platform UI stack
+   (Segoe UI Variable on the Windows builds this ships to) rather than a font
+   that would silently fall back -- or block first paint -- when offline.
+   --------------------------------------------------------------------------- */
+html {
+  font-family: "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui,
+    -apple-system, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis-weight: none;
+}
+
+/* Numbers that sit in columns or tick upward (token counts, elapsed timers,
+   spend, task durations) must not reflow as digits change width. */
+table,
+time,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+code,
+pre,
+kbd {
+  font-family: "Cascadia Code", "Cascadia Mono", ui-monospace, SFMono-Regular,
+    "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-variant-ligatures: none; /* keeps -> and != honest in code review diffs */
+}
+
+/* Global no-horizontal-scroll rule (system-wide, not Memory-only -- see
+   lib/devLayoutCheck.js for the dev-only checker that verifies this at
+   several window sizes). This is a safety net, not the actual fix: every
+   flex/grid container that can overflow still needs its own min-w-0 and
+   wrap/truncate rules where content is genuinely unbounded (long titles,
+   model names, source excerpts) -- this rule only stops that overflow from
+   ever widening the whole document, so a spot that's still visually wrong
+   is at least clipped/scrollable-in-place instead of shifting the app shell. */
+html,
+body,
+#root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* ---------------------------------------------------------------------------
+   Keyboard focus
+
+   Previously nothing styled focus at all, so tabbing through the app left no
+   visible indication of position -- the shell is a real desktop application
+   with dialogs, a settings form and a file tree, all of which are reachable by
+   keyboard. :focus-visible (not :focus) means pointer users never see a ring on
+   click, only genuine keyboard navigation does.
+   --------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--nova-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Elements that opt into their own ring (Tailwind focus:ring-*) should not get
+   both treatments stacked. */
+.focus\:ring-2:focus-visible,
+.focus\:ring-1:focus-visible {
+  outline: none;
+}
+
+::selection {
+  background-color: rgb(52 211 153 / 0.28); /* emerald-400 @ 28% */
+  color: var(--nova-text);
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars
+
+   Thin and blended into the dark theme instead of the OS default. Global (not
+   per-component) since Chromium renders ::-webkit-scrollbar per scrolling
+   element -- one rule here covers every overflow-y-auto container in the app
+   (chat history, sidebar conversation list, Settings panels, MCP tool list)
+   with no per-component changes needed, including any added later.
+
+   The thumb uses a transparent border with background-clip: content-box so the
+   visible pill is narrower than the full track, but the actual hit-target for
+   dragging stays the full track width (the border is part of the thumb's box,
+   just uncolored) -- thin-looking without being fiddly to grab.
+
+   These were previously hardcoded to slate-700/600/500, which is the blue-
+   leaning scale the app deliberately does not use; against neutral charcoal
+   surfaces that read as a faintly blue bar. They now track the charcoal scale.
+   --------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--nova-surface-600) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--nova-surface-600);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #4a4f56;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--nova-text-dim);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion
+
+   The reactor (components/chat/ReactorCore.jsx) and the memory graph are
+   canvas-driven and read prefers-reduced-motion themselves via matchMedia,
+   rendering a single static frame instead of looping. CSS-driven motion --
+   Tailwind's animate-pulse/animate-bounce on the thinking indicator, the
+   character rig's sway keyframes, every transition-* in the shell -- had no
+   such handling, so the setting was only half-respected. This covers the CSS
+   half. Motion is reduced to a near-instant state change rather than removed,
+   so things that communicate through movement still register as having
+   changed.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

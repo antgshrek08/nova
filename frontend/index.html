@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/icon.ico" />
+    <!-- iOS delivers Web Push only to a site installed to the Home Screen,
+         and it decides what "installed" means from these. Without the
+         manifest and the apple-mobile-web-app tags, Add to Home Screen makes
+         a bookmark that opens Safari, the notification permission prompt
+         never appears, and nothing explains why. -->
+    <link rel="manifest" href="/app/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Nova" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <link rel="apple-touch-icon" href="/app/icon.png" />
+    <title>N.O.V.A.</title>
+  </head>
+  <body class="bg-charcoal-950 text-charcoal-100">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

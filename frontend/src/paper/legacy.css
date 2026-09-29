@@ -1,0 +1,27 @@
+/* Older settings panels (components/settings/*) restyled onto Paper tokens. */
+.p-legacy { color: var(--tx); font-size: 14px; }
+.p-legacy h2, .p-legacy h3 { font-family: var(--sans); font-weight: 500; }
+.p-legacy button { cursor: pointer; }
+.p-legacy [class*="rounded"] { border-radius: 10px; }
+.p-legacy [class*="bg-charcoal-9"], .p-legacy [class*="bg-zinc-9"], .p-legacy [class*="bg-slate-9"],
+.p-legacy [class*="bg-[#0"], .p-legacy [class*="bg-[#1"], .p-legacy [class*="bg-black"] { background-color: var(--bg) !important; }
+.p-legacy [class*="bg-charcoal-8"], .p-legacy [class*="bg-charcoal-7"], .p-legacy [class*="bg-zinc-8"],
+.p-legacy [class*="bg-slate-8"], .p-legacy [class*="bg-white/"] { background-color: var(--surf) !important; }
+.p-legacy [class*="border-charcoal"], .p-legacy [class*="border-zinc"], .p-legacy [class*="border-slate"],
+.p-legacy [class*="border-[#"], .p-legacy [class*="border-white/"] { border-color: var(--ln) !important; }
+.p-legacy [class*="divide-charcoal"] > * { border-color: var(--ln) !important; }
+.p-legacy [class*="text-charcoal-1"], .p-legacy [class*="text-charcoal-2"], .p-legacy [class*="text-zinc-1"],
+.p-legacy [class*="text-zinc-2"], .p-legacy [class*="text-white"], .p-legacy [class*="text-[#E"] { color: var(--tx) !important; }
+.p-legacy [class*="text-charcoal-3"], .p-legacy [class*="text-charcoal-4"], .p-legacy [class*="text-zinc-3"],
+.p-legacy [class*="text-zinc-4"], .p-legacy [class*="text-slate-4"] { color: var(--tx2) !important; }
+.p-legacy [class*="text-charcoal-5"], .p-legacy [class*="text-charcoal-6"], .p-legacy [class*="text-zinc-5"],
+.p-legacy [class*="text-zinc-6"] { color: var(--tx3) !important; }
+.p-legacy [class*="text-cyan"], .p-legacy [class*="text-blue"], .p-legacy [class*="text-emerald"],
+.p-legacy [class*="text-sky"] { color: var(--ok) !important; }
+.p-legacy :is([class*="bg-cyan-5"], [class*="bg-cyan-6"], [class*="bg-blue-5"], [class*="bg-blue-6"], [class*="bg-emerald-5"]):not([class*="/"]) { background-color: var(--tx) !important; color: var(--bg) !important; }
+.p-legacy :is([class*="bg-cyan-"], [class*="bg-blue-"], [class*="bg-emerald-"], [class*="bg-sky-"])[class*="/"] { background-color: color-mix(in srgb, var(--pa) 16%, transparent) !important; color: var(--tx) !important; }
+.p-legacy [class*="shadow-"] { box-shadow: none !important; }
+.p-legacy input, .p-legacy textarea, .p-legacy select { background-color: var(--surf) !important; color: var(--tx) !important; border-color: var(--ln) !important; }
+.p-legacy [class*="text-amber"], .p-legacy [class*="text-rose"] { color: var(--danger) !important; }
+.p-legacy [class*="bg-rose"], .p-legacy [class*="bg-amber"] { background-color: color-mix(in srgb, var(--danger) 10%, transparent) !important; }
+.p-legacy [class*="ring-"] { --tw-ring-color: var(--ln) !important; }

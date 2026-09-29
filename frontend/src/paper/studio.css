@@ -1,0 +1,36 @@
+/* Maps the existing code workspace's dark utility colors onto Paper's tokens
+   while its panels are rebuilt, so Studio matches day and night. */
+.p-studio-host { height: 100%; min-height: 0; background: var(--bg); color: var(--tx); overflow: hidden; }
+.p-studio-host > :not([hidden]) { height: 100%; }
+.p-studio-host [class*="bg-charcoal-9"], .p-studio-host [class*="bg-zinc-9"], .p-studio-host [class*="bg-slate-9"],
+.p-studio-host [class*="bg-[#0"], .p-studio-host [class*="bg-[#1"], .p-studio-host [class*="bg-black"] { background-color: var(--bg) !important; }
+.p-studio-host [class*="bg-charcoal-8"], .p-studio-host [class*="bg-charcoal-7"], .p-studio-host [class*="bg-zinc-8"],
+.p-studio-host [class*="bg-slate-8"], .p-studio-host [class*="bg-white/"] { background-color: var(--surf) !important; }
+.p-studio-host [class*="border-charcoal"], .p-studio-host [class*="border-zinc"], .p-studio-host [class*="border-slate"],
+.p-studio-host [class*="border-[#"], .p-studio-host [class*="border-white/"] { border-color: var(--ln) !important; }
+.p-studio-host [class*="divide-charcoal"] > * { border-color: var(--ln) !important; }
+.p-studio-host [class*="text-charcoal-1"], .p-studio-host [class*="text-charcoal-2"], .p-studio-host [class*="text-zinc-1"],
+.p-studio-host [class*="text-zinc-2"], .p-studio-host [class*="text-white"], .p-studio-host [class*="text-[#E"] { color: var(--tx) !important; }
+.p-studio-host [class*="text-charcoal-3"], .p-studio-host [class*="text-charcoal-4"], .p-studio-host [class*="text-zinc-3"],
+.p-studio-host [class*="text-zinc-4"], .p-studio-host [class*="text-slate-4"] { color: var(--tx2) !important; }
+.p-studio-host [class*="text-charcoal-5"], .p-studio-host [class*="text-charcoal-6"], .p-studio-host [class*="text-zinc-5"],
+.p-studio-host [class*="text-zinc-6"] { color: var(--tx3) !important; }
+.p-studio-host [class*="text-cyan"], .p-studio-host [class*="text-blue"], .p-studio-host [class*="text-emerald"],
+.p-studio-host [class*="text-sky"] { color: var(--ok) !important; }
+.p-studio-host :is([class*="bg-cyan-5"], [class*="bg-cyan-6"], [class*="bg-blue-5"], [class*="bg-blue-6"], [class*="bg-emerald-5"]):not([class*="/"]) { background-color: var(--tx) !important; color: var(--bg) !important; }
+.p-studio-host :is([class*="bg-cyan-"], [class*="bg-blue-"], [class*="bg-emerald-"], [class*="bg-sky-"])[class*="/"] { background-color: color-mix(in srgb, var(--pa) 16%, transparent) !important; color: var(--tx) !important; }
+.p-studio-host [class*="shadow-"] { box-shadow: none !important; }
+.p-studio-host input, .p-studio-host textarea, .p-studio-host select { background-color: var(--surf) !important; color: var(--tx) !important; border-color: var(--ln) !important; }
+.p-studio-host .cm-editor, .p-studio-host .cm-scroller { background: var(--surf) !important; color: var(--tx) !important; font-family: var(--mono) !important; }
+.p-studio-host .cm-gutters { background: var(--surf) !important; color: var(--tx3) !important; border-color: var(--ln) !important; }
+.p-studio-host .cm-activeLine, .p-studio-host .cm-activeLineGutter { background: color-mix(in srgb, var(--pa) 10%, transparent) !important; }
+.p-studio-host .cm-cursor { border-left-color: var(--tx) !important; }
+.p-studio-host .xterm, .p-studio-host .xterm-viewport { background: var(--surf) !important; }
+/* Syntax colors for day and night (lib/codeMirrorTheme.js reads these). */
+.p-studio-host { --cm-keyword: var(--ok); --cm-text: var(--tx); --cm-func: #2F5EA8; --cm-const: #A5621B; --cm-op: #5E5A55;
+  --cm-comment: #8F8A83; --cm-string: #3F7F2A; --cm-invalid: #B3261E; }
+.paper.night .p-studio-host { --cm-func: #8FB8F0; --cm-const: #E2B06A; --cm-op: #A7A29C; --cm-comment: #77726D;
+  --cm-string: #A9D46F; --cm-invalid: #F2A29C; }
+.p-studio-host .cm-content { caret-color: var(--tx) !important; font-family: var(--mono) !important; }
+.p-studio-host .cm-selectionBackground, .p-studio-host .cm-content ::selection { background: color-mix(in srgb, var(--pa) 30%, transparent) !important; }
+.p-studio-host .cm-tooltip, .p-studio-host .cm-panels { background: var(--surf) !important; color: var(--tx) !important; border-color: var(--ln) !important; }

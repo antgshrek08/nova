@@ -1,0 +1,154 @@
+{
+  "name": "nova",
+  "private": true,
+  "version": "0.1.0",
+  "description": "N.O.V.A. desktop app",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev:vite": "vite",
+    "dev:electron": "wait-on tcp:5173 && cross-env NODE_ENV=development electron .",
+    "dev": "concurrently -k \"npm:dev:vite\" \"npm:dev:electron\"",
+    "build": "vite build",
+    "start": "cross-env NODE_ENV=production electron .",
+    "dist": "npm run build && electron-builder --win",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:all": "npm run build && electron-builder -mwl"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-cpp": "^6.0.3",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.12",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/lang-rust": "^6.0.2",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.4",
+    "@codemirror/view": "^6.43.11",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "@lezer/highlight": "^1.2.3",
+    "@uiw/react-codemirror": "^4.25.11",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "d3-force": "^3.0.0",
+    "katex": "^0.18.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "png-to-ico": "^3.0.2",
+    "postcss": "^8.4.38",
+    "sharp": "^0.35.4",
+    "tailwindcss": "^3.4.4",
+    "vite": "^5.3.1",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.nova.desktop",
+    "productName": "N.O.V.A.",
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist",
+        "to": "frontend/dist"
+      },
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!.env",
+          "!uvicorn_out.log",
+          "!uvicorn_err.log",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!.venv/Lib/site-packages/torch/**",
+          "!.venv/Lib/site-packages/nvidia/**",
+          "!.venv/lib/python*/site-packages/torch/**",
+          "!.venv/lib/python*/site-packages/nvidia/**",
+          "!vendor/hermes-agent/.git/**",
+          "!vendor/hermes-agent/tests/**",
+          "!tests/**",
+          "!models/*.zip",
+          "!*.db",
+          "!**/*.db",
+          "!**/*.db-journal",
+          "!**/*.db-wal",
+          "!**/*.db-shm",
+          "!**/*.sqlite",
+          "!**/*.sqlite3",
+          "!.hermes/**",
+          "!.pytest_cache/**",
+          "!*.log",
+          "!uvicorn_*.txt",
+          "!stress_chat.log",
+          "!**/.env",
+          "!**/*.pem",
+          "!**/credentials*.json"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.education",
+      "icon": "public/icon.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "tar.gz"
+      ],
+      "category": "Education",
+      "icon": "public/icon.png"
+    }
+  }
+}

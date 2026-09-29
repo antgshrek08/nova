@@ -1,0 +1,18 @@
+/* The miniplayer window in Paper colors (day or night, the user's palette). */
+@import "@fontsource-variable/geist/index.css";
+.p-minicard { --bg: #F6F4F0; --surf: #FFFFFF; --tx: #141414; --tx2: #5E5A55; --tx3: #8F8A83; --ln: #E6E2DC;
+  background: color-mix(in srgb, var(--bg) 96%, transparent) !important; color: var(--tx) !important; border: 1px solid var(--ln) !important;
+  box-shadow: 0 24px 50px -24px rgba(20, 20, 20, .45) !important; font-family: "Geist Variable", system-ui, sans-serif; }
+.p-minicard.night { --bg: #0D0E12; --surf: #17181E; --tx: #ECE9E4; --tx2: #A7A29C; --tx3: #77726D; --ln: #24252C; }
+.p-minicard [class*="text-charcoal-1"], .p-minicard [class*="text-charcoal-2"], .p-minicard [class*="text-white"],
+.p-minicard [class*="text-sky-2"], .p-minicard [class*="text-violet-2"], .p-minicard [class*="text-emerald-2"] { color: var(--tx) !important; }
+.p-minicard [class*="text-charcoal-3"], .p-minicard [class*="text-charcoal-4"] { color: var(--tx2) !important; }
+.p-minicard [class*="text-charcoal-5"], .p-minicard [class*="text-charcoal-6"] { color: var(--tx3) !important; }
+.p-minicard [class*="bg-charcoal-9"], .p-minicard [class*="bg-charcoal-8"] { background-color: var(--surf) !important; }
+.p-minicard [class*="border-charcoal"], .p-minicard [class*="ring-charcoal"] { border-color: var(--ln) !important; --tw-ring-color: var(--ln) !important; }
+.p-minicard input, .p-minicard textarea { background: var(--surf) !important; color: var(--tx) !important; border-color: var(--ln) !important; }
+.p-minicard .p-mini-reactor { width: 100%; height: 100%; }
+.p-minicard button[class*="font-semibold"] { background: var(--tx) !important; color: var(--bg) !important; box-shadow: none !important; }
+.p-minicard [class*="text-rose-"] { color: #B3261E !important; }
+.p-minicard.night [class*="text-rose-"] { color: #F2A29C !important; }
+.p-minicard [class*="bg-cyan-"], .p-minicard [class*="bg-emerald-"] { background-color: color-mix(in srgb, var(--pa) 16%, transparent) !important; }

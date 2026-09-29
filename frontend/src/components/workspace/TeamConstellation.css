@@ -1,0 +1,35 @@
+.team-graph{position:relative;width:100%;height:100%;min-width:0;overflow:hidden;container-type:inline-size;color:#cbd9d2}
+.team-graph>canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.team-director{position:absolute;top:13px;left:50%;transform:translateX(-50%);font-size:11px;color:#8da99a;white-space:nowrap}
+.team-director strong{color:#c1e9d3;font-weight:500}
+.team-node{position:absolute;width:27%;height:calc(25% - 17px);min-width:0;pointer-events:auto;border:1px solid #2c473a;border-radius:9px;background:linear-gradient(135deg,#14231c,#0c1511);box-shadow:0 5px 18px #0003;transition:border-color .25s}
+.team-node[data-active=true]{border-color:#6fca9c;box-shadow:0 0 16px #3bdd9314}
+.team-node[data-handoff=out]{border-color:#b4ffe0}.team-node[data-handoff=in]{border-color:#70d6ab}
+.team-port{position:absolute;top:17px;width:9px;height:9px;border:2px solid #8bc6a4;border-radius:50%;background:#10291c;z-index:2;pointer-events:none}
+.team-node[data-side=left]>.team-port{right:-5px}.team-node[data-side=right]>.team-port{left:-5px}
+.team-node-head{width:100%;display:flex;align-items:center;gap:6px;padding:7px 9px 6px;text-align:left;border:0;border-bottom:1px solid #263d31;background:transparent;cursor:pointer;color:inherit;border-radius:9px 9px 0 0}
+.team-node-head h3{font-size:12px;line-height:15px;font-weight:600;flex:1;min-width:0;margin:0}
+.team-node-count{font-size:10px;color:#94ae9f;white-space:nowrap}
+.team-members{height:calc(100% - 32px);overflow:auto;overflow-x:hidden;padding:2px 7px 4px;scrollbar-width:thin;scrollbar-color:#385d47 transparent}
+.team-member{display:grid;grid-template-columns:5px 15px minmax(0,1fr);column-gap:6px;width:100%;padding:1px 2px;text-align:left;cursor:pointer;border:0;border-bottom:1px solid #243b2f80;background:transparent;color:inherit}
+.team-member:last-child{border-bottom:0}.team-member:hover{background:#24453055}
+.team-member-dot{width:5px;height:5px;margin-top:4px;border-radius:50%;background:#648b75}
+.team-member[data-status=running] .team-member-dot{background:#90ffd0;box-shadow:0 0 5px #60ffaa80}
+.team-member[data-status=unavailable] .team-member-dot{background:#ba975c}
+/* Always present, even when a model has no mascot: the empty cell keeps every
+   row's text on the same left edge instead of ragging by provider. */
+.team-member-mascot{display:flex;align-items:center;justify-content:center;width:15px;height:15px}
+.team-member-top{display:flex;align-items:baseline;gap:5px;font-size:11px;line-height:14px;min-width:0}
+.team-member-role{flex-shrink:0;text-transform:capitalize;font-weight:500;color:#d0e5d9}
+.team-member-status{font-size:9px;margin-left:auto;color:#87a792;white-space:nowrap}
+.team-member-model{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#7ea78e;font-size:10px}
+.team-handoff-label{position:absolute;right:5px;bottom:-10px;padding:2px 6px;font-size:10px;line-height:13px;color:#caffdf;border:1px solid #437858;background:#143022;border-radius:4px;z-index:3;pointer-events:none}
+.team-graph-error{position:absolute;bottom:4px;left:30%;width:40%;text-align:center;color:#dbb981;font-size:11px}
+.team-inspector{pointer-events:auto;position:absolute;inset:50px 12px auto auto;z-index:40;width:360px;max-width:calc(100% - 24px);max-height:calc(100% - 64px);overflow:auto;border:1px solid #42664f;border-radius:10px;background:#101d16;padding:16px;box-shadow:0 8px 40px #0009}
+.team-inspector h3{margin:0 24px 10px 0;font-size:16px}.team-inspector h4{margin:12px 0 4px;font-size:12px;color:#d2e6d9;text-transform:capitalize}
+.team-inspector p{font-size:12px;line-height:1.5;overflow-wrap:anywhere;color:#96b3a1;margin:3px 0}
+.team-inspector .team-inspector-model{color:#bce8cf}.team-inspector-close{position:absolute;right:12px;top:10px;font-size:21px;background:none;border:0;color:#a7c6b4;cursor:pointer}
+.team-inspector-task{margin:10px 0;border-left:2px solid #4d936c;padding-left:9px}
+.team-graph button:focus-visible{outline:2px solid #a4eec3;outline-offset:2px}
+@media(max-height:740px){.team-member{padding:2px}.team-members{padding-top:1px;padding-bottom:1px}.team-member-model{line-height:12px}}
+@container(max-width:600px){.team-member{grid-template-columns:5px minmax(0,1fr)}.team-member-mascot{display:none}.team-node{width:28%}.team-node-head{padding:6px}.team-node-head h3{font-size:11px;line-height:13px}.team-node-count{display:none}.team-members{padding:2px 5px}.team-member-top{font-size:10px}.team-member-status{font-size:8px}.team-director{font-size:10px}}
