@@ -21,6 +21,7 @@ import { UiProvider, useListKeys, useSelection, useUi } from "./ui.jsx";
 import usePrefs from "./usePrefs.js";
 import "./paper.css";
 import { IS_MAC, STOP_KEY, keys } from "./keys.js";
+import { useDismissed } from "./dismissals.js";
 
 const SECTIONS = [
   ["chat", "Chat", "chat"],
@@ -183,12 +184,12 @@ function Shell({ prefs, models }) {
   const [drawer, setDrawer] = useState(false);
   // "Workspace unlocked" appears once, the first time four models are ready
   // (?preview=unlock shows it again for a look).
-  const [unlockShown, setUnlockShown] = useState(false);
-  useEffect(() => {
-    const preview = new URLSearchParams(window.location.search).get("preview") === "unlock";
-    if (preview || (models.unlocked && stored("nova.workspace.unlockSeen", "0") !== "1")) setUnlockShown(true);
-  }, [models.unlocked]);
-  const closeUnlock = (open) => { store("nova.workspace.unlockSeen", "1"); setUnlockShown(false); if (open) go("workspace"); };
+  // "Later" and "Open Workspace" both mean it has been seen: never again.
+  const [unlockDismissed, dismissUnlock] = useDismissed("workspace.unlock");
+  const unlockPreview = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "unlock";
+  const [unlockClosed, setUnlockClosed] = useState(false);
+  const unlockShown = !unlockClosed && (unlockPreview || (models.unlocked && unlockDismissed === false));
+  const closeUnlock = (open) => { if (!unlockPreview) dismissUnlock(); setUnlockClosed(true); if (open) go("workspace"); };
 
   const refreshConversations = useCallback(() => {
     listConversations({ tab: "chat" }).then((rows) => setConversations(Array.isArray(rows) ? rows : [])).catch(() => {});

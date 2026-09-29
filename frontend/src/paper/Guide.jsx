@@ -1,8 +1,8 @@
 // Beginner help on each main screen: what it's for and how to use it, shown
 // until the user says they've got it, and back any time from the screen's
 // "How this works" button. What each screen says lives in GUIDES below.
-import { useEffect, useState } from "react";
 import Icon from "./icons.jsx";
+import { undismiss, useDismissed } from "./dismissals.js";
 import { IS_TOUCH, keys, tap } from "./keys.js";
 
 export const GUIDES = {
@@ -67,23 +67,15 @@ export const GUIDES = {
   },
 };
 
-const key = (id) => `nova.guide.${id}`;
-const seen = (id) => { try { return localStorage.getItem(key(id)) === "done"; } catch { return false; } };
-
-/** The card. Shows until dismissed; "nova-guide" events reopen it. */
+/** The card. Shows until "Got it" is pressed, then never again, on any
+ * device, until the screen's "How this works" button brings it back. */
 export default function Guide({ id, onTry }) {
   const g = GUIDES[id];
-  const [open, setOpen] = useState(() => !seen(id));
-  useEffect(() => {
-    const reopen = (e) => { if (e.detail === id) setOpen(true); };
-    window.addEventListener("nova-guide", reopen);
-    return () => window.removeEventListener("nova-guide", reopen);
-  }, [id]);
-  if (!g || !open) return null;
-  const done = () => { try { localStorage.setItem(key(id), "done"); } catch { /* private window */ } setOpen(false); };
+  const [dismissed, dismiss] = useDismissed(`guide.${id}`);
+  if (!g || dismissed !== false) return null; // null: not known yet -- no flash
   return (
     <section className="p-guide" aria-label={g.title}>
-      <div className="hd"><b>{g.title}</b><button className="p-link" onClick={done} aria-label="Hide this guide">Got it</button></div>
+      <div className="hd"><b>{g.title}</b><button className="p-link" onClick={dismiss} aria-label="Hide this guide">Got it</button></div>
       <ul>{g.points.map(([icon, text]) => <li key={text}><Icon name={icon} size={15} /><span>{text}</span></li>)}</ul>
       {g.tries && onTry && (
         <div className="tries"><span className="note">Try:</span>{g.tries.map((t) => <button key={t} className="p-chip" onClick={() => onTry(t)}>{t}</button>)}</div>
@@ -96,7 +88,7 @@ export default function Guide({ id, onTry }) {
 export function GuideButton({ id }) {
   return (
     <button className="p-ib plain p-guidebtn" title="How this works" aria-label="How this works"
-      onClick={() => { try { localStorage.removeItem(key(id)); } catch { /* ignore */ } window.dispatchEvent(new CustomEvent("nova-guide", { detail: id })); }}>
+      onClick={() => undismiss(`guide.${id}`)}>
       <Icon name="info" size={16} />
     </button>
   );

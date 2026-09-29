@@ -5114,3 +5114,38 @@ async def desktop_permissions_request(request: Request):
     _local_only(request)
     from . import desktop_os
     return {"permissions": await asyncio.to_thread(desktop_os.request_permissions)}
+
+
+# --- Help notes and popups the user has dismissed --------------------------
+#
+# "Got it" / "Later" is permanent: kept here rather than in the browser's
+# storage, which is separate for the desktop app, the phone and a dev build,
+# and can be lost when the app is closed abruptly or reinstalled.
+
+def _dismissed() -> set[str]:
+    from . import operator_store
+    return set((operator_store.get("ui", "dismissed") or {}).get("ids", []))
+
+
+@app.get("/ui/dismissed")
+async def ui_dismissed():
+    return {"ids": sorted(await asyncio.to_thread(_dismissed))}
+
+
+@app.post("/ui/dismissed")
+async def ui_dismiss(body: dict = Body(default={})):
+    """Mark notes as dismissed for good: {"ids": ["guide.chat", ...]}."""
+    from . import operator_store
+    ids = {str(i)[:80] for i in (body.get("ids") or []) if str(i).strip()}
+    merged = sorted(await asyncio.to_thread(_dismissed) | ids)
+    await asyncio.to_thread(operator_store.put, "ui", "dismissed", {"ids": merged})
+    return {"ids": merged}
+
+
+@app.delete("/ui/dismissed/{note_id}")
+async def ui_undismiss(note_id: str):
+    """Show a note again (the "How this works" button)."""
+    from . import operator_store
+    remaining = sorted(await asyncio.to_thread(_dismissed) - {note_id})
+    await asyncio.to_thread(operator_store.put, "ui", "dismissed", {"ids": remaining})
+    return {"ids": remaining}
