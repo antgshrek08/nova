@@ -33,7 +33,6 @@ jobs:
           grep -vE '^(chatterbox-tts|faster-whisper|piper-tts|vosk|openwakeword)' requirements.txt > core.txt
           python -m pip install --upgrade pip
           python -m pip install -r core.txt pytest pytest-asyncio
-          if [ "$RUNNER_OS" != "Windows" ]; then python -m pip install ptyprocess; fi
       - name: Engine imports
         run: python -c "from app import main, desktop; print('ok', sorted(desktop.unavailable()))"
       - name: Tests

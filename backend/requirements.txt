@@ -87,3 +87,16 @@ pywebpush>=2.0
 # Interactive terminal (see app/terminal.py). A PTY rather than pipes, so
 # programs that check isatty() behave normally and interactive ones work at all.
 pywinpty>=2.0; sys_platform == "win32"
+
+# Imported directly by the engine (previously arriving only as other packages'
+# dependencies, or not at all -- a clean install failed without them).
+sympy>=1.13            # checking math answers (coursework_autopilot.py)
+pillow>=10.0           # screenshots and images
+python-dateutil>=2.9   # due dates on homework sites
+icalendar>=6.0         # calendar links
+pyperclip>=1.9         # clipboard
+yt-dlp>=2025.1         # watching videos (video.py)
+soundfile>=0.12        # voice audio
+pywin32>=306; sys_platform == "win32"
+# The interactive terminal on macOS and Linux (pywinpty above is Windows').
+ptyprocess>=0.7; sys_platform != "win32"

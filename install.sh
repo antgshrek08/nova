@@ -87,8 +87,6 @@ grep -vE "^($VOICE_PKGS)" "$NOVA_DIR/backend/requirements.txt" > "$CORE_REQ"
 say "Installing Nova (core)"
 "$VENV/bin/python" -m pip install -r "$CORE_REQ"
 rm -f "$CORE_REQ"
-# The interactive terminal on macOS and Linux.
-"$VENV/bin/python" -m pip install ptyprocess >/dev/null
 
 say "Installing the browser Nova drives (Playwright Chromium)"
 "$VENV/bin/python" -m playwright install chromium || warn "Skipped. Nova uses your own browser instead."
