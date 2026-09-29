@@ -308,3 +308,21 @@ def act_at_sync(x: int, y: int) -> dict | None:
         except Exception:  # noqa: BLE001
             return None
     return None
+
+
+def tree_summary(depth: int = 2) -> list:
+    """Every app on the accessibility bus with its top-level nodes, for
+    diagnosing "that window doesn't expose its controls"."""
+    root = ("org.a11y.atspi.Registry", "/org/a11y/atspi/accessible/root")
+
+    def node(ref, level):
+        try:
+            role = str(_call(ref, ACC, "GetRoleName")[0])
+        except Exception as exc:  # noqa: BLE001
+            role = f"? ({exc})"
+        item = {"ref": list(ref), "role": role, "name": str(_prop(ref, ACC, "Name") or "")}
+        if level < depth:
+            item["children"] = [node(c, level + 1) for c in _children(ref)[:12]]
+        return item
+
+    return [dict(node(app, 0), pid=_pid_of(app[0])) for app in _children(root)]

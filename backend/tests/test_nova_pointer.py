@@ -341,7 +341,7 @@ def _open_with(new_title, path="notepad.exe"):
 
     with mock.patch.object(desktop, "_enum_windows", side_effect=enum), \
          mock.patch.object(nova_pointer, "fullscreen_app", return_value=None), \
-         mock.patch.object(desktop.os, "startfile", create=True), \
+         mock.patch.object(desktop, "_launch"), \
          mock.patch.object(desktop, "OPEN_APP_POLL_SECONDS", 0):
         return asyncio.run(desktop.open_app(path))
 

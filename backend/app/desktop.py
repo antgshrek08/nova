@@ -453,6 +453,41 @@ OPEN_APP_SETTLE_SECONDS = 6.0
 OPEN_APP_POLL_SECONDS = 0.25
 
 
+def _launch(target_path: str, quietly: bool) -> None:
+    """Open an app or file with the system's own "open", quietly (without
+    taking focus) when a fullscreen app is in front."""
+    if quietly and os.name == "nt":
+        import ctypes
+        # SW_SHOWMINNOACTIVE: open minimised, without taking focus.
+        result = ctypes.windll.shell32.ShellExecuteW(None, "open", target_path, None, None, 7)
+        if result <= 32:
+            raise OSError(f"ShellExecute returned {result}")
+        return
+    if os.name == "nt":
+        os.startfile(target_path)
+        return
+    import shutil
+    import subprocess
+    is_file = os.path.exists(target_path)
+    if sys.platform == "darwin":
+        # "-g" opens without bringing it forward, like the minimised open on Windows.
+        quiet = ["-g"] if quietly else []
+        if is_file or target_path.endswith(".app"):
+            subprocess.run(["open", *quiet, target_path], check=True, timeout=15)
+        else:  # an app by name: "Calculator", "Safari"
+            subprocess.run(["open", *quiet, "-a", target_path], check=True, timeout=15, capture_output=True)
+        return
+    if is_file:
+        subprocess.Popen(["xdg-open", target_path])
+    elif shutil.which(target_path):
+        subprocess.Popen([shutil.which(target_path)], start_new_session=True)
+    elif shutil.which("gtk-launch"):  # an app by its desktop entry: "org.gnome.Calculator"
+        subprocess.run(["gtk-launch", target_path], check=True, timeout=15, capture_output=True)
+    else:
+        raise OSError(f"no app called {target_path!r} was found")
+
+
+
 async def open_app(path: str, background: bool | None = None) -> dict:
     """Launches an application/file via the OS's own "open" association --
     equivalent to double-clicking it in Explorer. Gated.
@@ -493,39 +528,8 @@ async def open_app(path: str, background: bool | None = None) -> dict:
         if found:
             target_path = found
 
-    def _open():
-        if quietly and os.name == "nt":
-            import ctypes
-            # SW_SHOWMINNOACTIVE: open minimised, without taking focus.
-            result = ctypes.windll.shell32.ShellExecuteW(None, "open", target_path, None, None, 7)
-            if result <= 32:
-                raise OSError(f"ShellExecute returned {result}")
-            return
-        if os.name == "nt":
-            os.startfile(target_path)
-            return
-        import shutil
-        import subprocess
-        is_file = os.path.exists(target_path)
-        if sys.platform == "darwin":
-            # "-g" opens without bringing it forward, like the minimised open on Windows.
-            quiet = ["-g"] if quietly else []
-            if is_file or target_path.endswith(".app"):
-                subprocess.run(["open", *quiet, target_path], check=True, timeout=15)
-            else:  # an app by name: "Calculator", "Safari"
-                subprocess.run(["open", *quiet, "-a", target_path], check=True, timeout=15, capture_output=True)
-            return
-        if is_file:
-            subprocess.Popen(["xdg-open", target_path])
-        elif shutil.which(target_path):
-            subprocess.Popen([shutil.which(target_path)], start_new_session=True)
-        elif shutil.which("gtk-launch"):  # an app by its desktop entry: "org.gnome.Calculator"
-            subprocess.run(["gtk-launch", target_path], check=True, timeout=15, capture_output=True)
-        else:
-            raise OSError(f"no app called {target_path!r} was found")
-
     try:
-        await asyncio.to_thread(_open)
+        await asyncio.to_thread(_launch, target_path, quietly)
     except Exception as exc:  # noqa: BLE001
         raise DesktopActionError(f"Couldn't open '{path}': {exc}") from exc
 

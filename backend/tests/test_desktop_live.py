@@ -32,6 +32,14 @@ def _wait_for(predicate, seconds=15.0, step=0.25):
     return None
 
 
+def _try_controls(uia, wid):
+    try:
+        return [c for c in asyncio.run(uia.controls(wid)) if c["type"] in ("edit", "button")]
+    except uia.UiaError as exc:
+        print("controls:", exc)
+        return None
+
+
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux desktop")
 def test_linux_nova_uses_a_real_app():
     from app import desktop, desktop_os, uia
@@ -55,7 +63,10 @@ def test_linux_nova_uses_a_real_app():
         assert desktop_os.window_at((left + right) // 2, (top + bottom) // 2)["hwnd"] == window["hwnd"]
 
         # Its controls, through AT-SPI.
-        controls = _wait_for(lambda: [c for c in asyncio.run(uia.controls(window["hwnd"])) if c["type"] in ("edit", "button")])
+        from app import ax_linux
+        import json
+        print("accessibility tree:", json.dumps(_wait_for(lambda: ax_linux.tree_summary(3), seconds=5), indent=1)[:6000])
+        controls = _wait_for(lambda: _try_controls(uia, window["hwnd"]))
         assert controls, "no controls read"
         kinds = {c["type"] for c in controls}
         assert "edit" in kinds and "button" in kinds, controls
