@@ -488,7 +488,7 @@ function createWindow() {
     height: 760,
     title: "N.O.V.A.",
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
-    ...(isMac ? { trafficLightPosition: { x: 14, y: 14 } } : {}),
+    ...(isMac ? { trafficLightPosition: { x: 16, y: 17 } } : {}),
     icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),

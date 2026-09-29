@@ -20,7 +20,7 @@ import { operatorStop } from "./paperApi.js";
 import { UiProvider, useListKeys, useSelection, useUi } from "./ui.jsx";
 import usePrefs from "./usePrefs.js";
 import "./paper.css";
-import { IS_WINDOWS, keys } from "./keys.js";
+import { IS_MAC, IS_WINDOWS, keys } from "./keys.js";
 
 const SECTIONS = [
   ["chat", "Chat", "chat"],
@@ -336,11 +336,11 @@ function Shell({ prefs, models }) {
 
   return (
     <div className={`paper${prefs.dark ? " night" : ""}${expanded ? " expanded" : ""}${onboarding ? " onboarding" : ""}${collapsed ? " collapsed" : ""}${drawer ? " drawer" : ""}`} style={style}>
-      <header className="p-title">
+      <header className={`p-title${electron?.platform === "darwin" ? " mac" : ""}`}>
         <div className="l"><Reactor palette={prefs.palette} dark={prefs.dark} /><b>Nova</b></div>
         <div className="mid">
           <button className="p-searchbtn" onClick={() => setPalette(true)} aria-label={keys("Search and go anywhere (Ctrl+K)")}>
-            <Icon name="search" size={13} /><span>{crumb}</span><kbd className="p-kbd">Ctrl K</kbd>
+            <Icon name="search" size={13} /><span>{crumb}</span><kbd className="p-kbd">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>
           </button>
         </div>
         <div className="r">
@@ -349,7 +349,7 @@ function Shell({ prefs, models }) {
             <button aria-pressed={!prefs.dark} aria-label="Day" title={keys("Day (Ctrl+Shift+L)")} onClick={() => prefs.setMode("day")}><Icon name="sun" /></button>
             <button aria-pressed={prefs.dark} aria-label="Night" title={keys("Night (Ctrl+Shift+L)")} onClick={() => prefs.setMode("night")}><Icon name="moon" /></button>
           </div>
-          {electron?.minimizeWindow && <>
+          {electron?.minimizeWindow && electron?.platform !== "darwin" && <>
             <button className="p-wc" aria-label="Minimize" title="Minimize" onClick={() => electron.minimizeWindow()}><Icon name="min" /></button>
             <button className="p-wc" aria-label="Maximize" title="Maximize" onClick={() => electron.maximizeWindow()}><Icon name="max" size={14} /></button>
             <button className="p-wc close" aria-label="Close" title="Close" onClick={() => electron.closeWindow()}><Icon name="x" /></button>

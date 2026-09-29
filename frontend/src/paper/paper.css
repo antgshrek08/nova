@@ -45,6 +45,8 @@
 .p-title .l { display: flex; align-items: center; gap: 8px; padding-left: 12px; }
 .p-title .l canvas { width: 20px; height: 20px; }
 .p-title .l b { color: var(--tx); font-weight: 500; }
+.p-title.mac .l { padding-left: 80px; } /* room for the macOS window buttons */
+.p-title.mac .r { padding-right: 10px; }
 .p-title .mid { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 12px; }
 .p-title .r { display: flex; align-items: center; height: 100%; -webkit-app-region: no-drag; }
 .p-tog { display: flex; gap: 2px; background: var(--sf); border-radius: 999px; padding: 2px; margin-right: 8px; }
