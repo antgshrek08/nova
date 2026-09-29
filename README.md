@@ -113,9 +113,14 @@ cd backend && .venv/bin/python -m pytest tests -q     # .venv\Scripts\python on 
 # app, with live reload
 cd frontend && npm run dev
 
-# installers (build on the system you are packaging for)
-npm run dist:win    # or dist:mac, dist:linux
+# installers, built on the system you are packaging for
+python build/prepare_python.py   # Nova's own Python (needs uv)
+npm run dist:win                 # or dist:mac, dist:linux
 ```
+
+Releases are built by GitHub: push a tag like `v0.2.0` and the Release
+workflow builds the Windows, macOS and Linux installers, checks that each
+one's engine starts, and attaches them to a GitHub release.
 
 On Windows, don't start the engine with uvicorn's `--reload`: it switches to
 an event loop that can't start subprocesses, which breaks the CLI-based
