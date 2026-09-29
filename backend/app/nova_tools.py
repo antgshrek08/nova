@@ -579,41 +579,17 @@ async def close_window(title_contains: str) -> dict:
 
         closed = await asyncio.to_thread(_close)
 
-    elif sys.platform == "darwin":
-        import subprocess
-        script = f'''
-        tell application "System Events"
-            set closedList to ""
-            set procList to every process whose background only is false
-            repeat with proc in procList
-                try
-                    repeat with w in (every window of proc)
-                        if (name of w as text) contains "{title_contains}" then
-                            set wTitle to name of w
-                            tell w to perform action "AXPress" of (first button whose subrole is "AXCloseButton")
-                            set closedList to closedList & wTitle & "\n"
-                        end if
-                    end repeat
-                end try
-            end repeat
-            return closedList
-        end tell
-        '''
-        res = await asyncio.to_thread(subprocess.run, ["osascript", "-e", script], capture_output=True, text=True)
-        closed = [line.strip() for line in res.stdout.strip().split("\n") if line.strip()]
-
     else:
-        import shutil
-        import subprocess
-        if shutil.which("wmctrl"):
-            out = subprocess.run(["wmctrl", "-l"], capture_output=True, text=True).stdout
-            for line in out.splitlines():
-                if needle in line.lower():
-                    wtitle = line.split(None, 3)[-1]
-                    subprocess.run(["wmctrl", "-c", wtitle])
-                    closed.append(wtitle)
-        else:
-            raise RuntimeError("Window control on Linux requires wmctrl (sudo apt install wmctrl).")
+        from . import desktop_os
+
+        def _close():
+            found = []
+            for w in desktop_os.list_windows():
+                if needle in w["title"].lower() and desktop_os.close(w["hwnd"]):
+                    found.append(w["title"])
+            return found
+
+        closed = await asyncio.to_thread(_close)
 
     if not closed:
         raise ValueError(f"No visible window whose title contains '{title_contains}'.")
@@ -655,40 +631,23 @@ async def focus_window(title_contains: str) -> dict:
 
         title = await asyncio.to_thread(_focus)
 
-    elif sys.platform == "darwin":
-        import subprocess
-        script = f'''
-        tell application "System Events"
-            set procList to every process whose background only is false
-            repeat with proc in procList
-                try
-                    repeat with w in (every window of proc)
-                        if (name of w as text) contains "{title_contains}" then
-                            set frontmost of proc to true
-                            tell w to perform action "AXRaise"
-                            return name of w
-                        end if
-                    end repeat
-                end try
-            end repeat
-        end tell
-        '''
-        res = await asyncio.to_thread(subprocess.run, ["osascript", "-e", script], capture_output=True, text=True)
-        title = res.stdout.strip() or None
-
     else:
-        import shutil
-        import subprocess
-        if shutil.which("wmctrl"):
-            out = subprocess.run(["wmctrl", "-l"], capture_output=True, text=True).stdout
-            for line in out.splitlines():
-                if needle in line.lower():
-                    wtitle = line.split(None, 3)[-1]
-                    subprocess.run(["wmctrl", "-a", wtitle])
-                    title = wtitle
-                    break
-        else:
-            raise RuntimeError("Window control on Linux requires wmctrl (sudo apt install wmctrl).")
+        from . import desktop_os, nova_pointer
+        in_front = nova_pointer.fullscreen_app()
+        if in_front and needle not in (in_front.get("title") or "").lower():
+            raise ValueError(
+                f"{in_front.get('title') or in_front.get('process') or 'A fullscreen app'} is fullscreen in front, "
+                "and bringing another window forward would pull the user out of it. Use app_controls / "
+                "app_click / app_type to work in that window without focusing it.")
+
+        def _focus():
+            matches = [w for w in desktop_os.list_windows() if needle in w["title"].lower()]
+            if not matches:
+                return None
+            desktop_os.activate(matches[0]["hwnd"])
+            return matches[0]["title"]
+
+        title = await asyncio.to_thread(_focus)
 
     if title is None:
         raise ValueError(f"No visible window whose title contains '{title_contains}'.")

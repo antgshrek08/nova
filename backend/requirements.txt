@@ -25,16 +25,21 @@ setuptools<81
 # for window enumeration; mss/pyautogui are the new ones for screenshots and
 # mouse/keyboard control.
 #
-# pyautogui is pinned to Windows. On Linux it wants python3-xlib and a live
-# X display at import time, so on a Fedora laptop it turns a working install
-# into a failed one -- to provide mouse and keyboard control of a desktop
-# whose windows Nova cannot enumerate anyway (that half is win32-only). It is
-# not silently degraded: desktop.py reports exactly what is missing and why,
-# and every affected tool answers with that sentence instead of a traceback.
-# mss stays unguarded -- it is pure Python, imports anywhere, and only needs
-# a display when a screenshot is actually taken.
+# mss is pure Python and only needs a display when a screenshot is taken.
+# pyautogui drives the real mouse and keyboard on all three systems; it only
+# connects to a display when used, and desktop.py reports plainly if there is
+# none (a headless box).
 mss>=9.0
-pyautogui>=0.9; sys_platform == "win32"
+pyautogui>=0.9
+# The same desktop control on macOS (desktop_os.py, ax_mac.py): window list and
+# images, events to one app, typing any character, accessibility.
+pyobjc-framework-Quartz>=10.0; sys_platform == "darwin"
+pyobjc-framework-ApplicationServices>=10.0; sys_platform == "darwin"
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"
+# ... and on Linux (desktop_os.py, ax_linux.py): X windows and input, and the
+# AT-SPI accessibility bus over D-Bus. Both pure Python.
+python-xlib>=0.33; sys_platform == "linux"
+jeepney>=0.8; sys_platform == "linux"
 # Windows UI Automation for Nova's own pointer (app/uia.py): pressing buttons
 # and filling fields through the accessibility tree instead of the real mouse,
 # which is what lets Nova work in an app while the user is in a game.

@@ -14,7 +14,8 @@ import Icon from "./icons.jsx";
 import ModelGuide from "./ModelGuide.jsx";
 import Reactor from "./Reactor.jsx";
 import { ModeChoice, PaletteChoice } from "./SettingsViews.jsx";
-import { IS_WINDOWS } from "./keys.js";
+import { STOP_KEY } from "./keys.js";
+import SystemAccess from "./SystemAccess.jsx";
 
 const truthy = (v) => v === true || v === "1" || v === 1;
 const openLink = (url) => (window.electronAPI?.openLink ? window.electronAPI.openLink(url) : window.open(url, "_blank"));
@@ -53,7 +54,8 @@ function PermissionsStep({ prefs }) {
           <button aria-pressed={s.browser_visibility_mode !== "visible"} onClick={() => prefs.save({ browser_visibility_mode: "hidden" })}>Keep hidden</button>
         </div>
       </div>
-      <p className="note">{IS_WINDOWS ? "Stop Nova any time: press Ctrl+Alt+Esc, or throw your mouse into a screen corner." : "Stop Nova any time from the Agents screen."} Your chats, memory and keys stay on this computer.</p>
+      <div style={{ width: "min(560px, 100%)", textAlign: "left" }}><SystemAccess compact /></div>
+      <p className="note">{`Stop Nova any time: press ${STOP_KEY}, or throw your mouse into a screen corner.`} Your chats, memory and keys stay on this computer.</p>
     </div>
   );
 }

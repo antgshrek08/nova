@@ -1,6 +1,6 @@
-"""Scoped desktop interaction. Windows-only (win32gui/win32process via
-pywin32, already a dependency elsewhere in this app; mss for screenshots,
-pyautogui for mouse/keyboard).
+"""Scoped desktop interaction on Windows, macOS and Linux: win32 on Windows,
+desktop_os (Quartz / Xlib) on the other two; mss for screenshots, pyautogui
+for the real mouse and keyboard.
 
 Two trust tiers, matching the app's actual policy:
   - read-only (capture_screenshot, list_windows, get_active_window):
@@ -117,14 +117,44 @@ if sys.platform == "win32":
     except Exception as exc:  # noqa: BLE001
         win32gui = win32process = None
         _UNAVAILABLE["windows"] = f"the Windows APIs did not load ({exc})"
-elif sys.platform == "darwin":
-    win32gui = win32process = None
-    # macOS natively supports window discovery and focus via AppleScript / System Events
 else:
-    import shutil
+    # macOS and Linux: desktop_os answers the same questions (see its docstring).
     win32gui = win32process = None
-    if not (shutil.which("wmctrl") or shutil.which("xdotool")):
-        _UNAVAILABLE["windows"] = "window management on Linux requires wmctrl or xdotool (e.g. sudo apt install wmctrl)"
+
+_WIN = sys.platform == "win32"
+
+
+def _os():
+    from . import desktop_os
+    return desktop_os
+
+
+def _title(hwnd: int) -> str:
+    if _WIN:
+        return win32gui.GetWindowText(hwnd)
+    return (_os().window(hwnd) or {}).get("title") or ""
+
+
+def _foreground() -> int:
+    if _WIN:
+        return win32gui.GetForegroundWindow()
+    w = _os().active_window()
+    return w["hwnd"] if w else 0
+
+
+def _cursor() -> tuple[int, int]:
+    if _WIN:
+        import win32api
+        return win32api.GetCursorPos()
+    return _os().cursor_pos()
+
+
+def _set_cursor(pos: tuple[int, int]) -> None:
+    if _WIN:
+        import win32api
+        win32api.SetCursorPos(pos)
+    else:
+        _os().set_cursor(*pos)
 
 
 def unavailable() -> dict[str, str]:
@@ -162,6 +192,11 @@ async def capture_screenshot() -> bytes:
             # in the version pinned here, not a file-like object -- PIL
             # encodes straight to an in-memory buffer instead.
             image = Image.frombytes("RGB", shot.size, shot.rgb)
+            if sys.platform == "darwin" and (monitor["width"], monitor["height"]) != image.size:
+                # Retina: pixels are 2x the points macOS clicks in. Handing the
+                # model an image in points keeps screenshot and click
+                # coordinates the same, as they are on Windows and Linux.
+                image = image.resize((monitor["width"], monitor["height"]))
             buf = io.BytesIO()
             image.save(buf, format="PNG")
             return buf.getvalue()
@@ -248,78 +283,7 @@ def _enum_windows() -> list[dict]:
         win32gui.EnumWindows(callback, None)
         return results
 
-    elif sys.platform == "darwin":
-        import subprocess
-        script = '''
-        tell application "System Events"
-            set res to ""
-            set frontApp to first application process whose frontmost is true
-            set frontName to name of frontApp
-            set procList to every process whose background only is false
-            repeat with proc in procList
-                set pName to name of proc
-                try
-                    repeat with w in (every window of proc)
-                        set wTitle to name of w
-                        if wTitle is not "" then
-                            set isAct to (pName is equal to frontName)
-                            set res to res & pName & "<|>" & wTitle & "<|>" & isAct & "\n"
-                        end if
-                    end repeat
-                end try
-            end repeat
-            return res
-        end tell
-        '''
-        try:
-            out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=3).stdout
-            idx = 1000
-            for line in out.strip().split("\n"):
-                if not line.strip():
-                    continue
-                parts = line.split("<|>")
-                if len(parts) >= 2:
-                    pname, title = parts[0].strip(), parts[1].strip()
-                    is_active = parts[2].strip().lower() == "true" if len(parts) > 2 else False
-                    results.append({
-                        "hwnd": idx,
-                        "title": title,
-                        "process": pname,
-                        "active": is_active,
-                        "maybe_unsaved": title.startswith("*") or title.startswith("●"),
-                    })
-                    idx += 1
-        except Exception:
-            pass
-        return results
-
-    else:
-        import shutil
-        import subprocess
-        if shutil.which("wmctrl"):
-            try:
-                out = subprocess.run(["wmctrl", "-l", "-p"], capture_output=True, text=True, timeout=3).stdout
-                idx = 2000
-                for line in out.strip().split("\n"):
-                    parts = line.split(None, 4)
-                    if len(parts) >= 5:
-                        _, _, pid_str, _, title = parts
-                        pname = ""
-                        try:
-                            pname = psutil.Process(int(pid_str)).name()
-                        except Exception:
-                            pass
-                        results.append({
-                            "hwnd": idx,
-                            "title": title.strip(),
-                            "process": pname,
-                            "active": False,
-                            "maybe_unsaved": title.startswith("*") or title.startswith("●"),
-                        })
-                        idx += 1
-            except Exception:
-                pass
-        return results
+    return _os().list_windows()
 
 
 async def get_active_window() -> dict | None:
@@ -411,6 +375,14 @@ def _focus_report() -> dict:
     is starting or a window is closing, and a momentary gap should not read as
     "nothing is focused".
     """
+    if not _WIN:
+        for attempt in range(6):
+            w = _os().active_window()
+            if w:
+                return {"into_window": w["title"] or None, "into_process": w["process"],
+                        "into_unsaved_document": w["maybe_unsaved"]}
+            time.sleep(0.15)
+        return {"into_window": None, "into_process": None, "into_unsaved_document": False}
     for attempt in range(6):
         hwnd = win32gui.GetForegroundWindow()
         if hwnd:
@@ -458,15 +430,14 @@ async def type_text(text: str, expect_window: str | None = None) -> dict:
     def _type():
         from .operator_workflows import require_running
         def check_abort():
-            pyautogui.failSafeCheck()
+            if pyautogui is not None:
+                pyautogui.failSafeCheck()
             require_running()
         if os.name == 'nt':
             from .unicode_input import type_unicode
             type_unicode(text, check_abort, pyautogui.press)
         else:
-            if not text.isascii():
-                raise DesktopActionError('Unicode desktop typing is not supported on this platform.')
-            pyautogui.write(text, interval=0.01)
+            _os().type_unicode(text, check_abort)
 
     try:
         await asyncio.to_thread(_type)
@@ -532,12 +503,26 @@ async def open_app(path: str, background: bool | None = None) -> dict:
             return
         if os.name == "nt":
             os.startfile(target_path)
-        elif sys.platform == "darwin":
-            import subprocess
-            subprocess.Popen(["open", target_path])
-        else:
-            import subprocess
+            return
+        import shutil
+        import subprocess
+        is_file = os.path.exists(target_path)
+        if sys.platform == "darwin":
+            # "-g" opens without bringing it forward, like the minimised open on Windows.
+            quiet = ["-g"] if quietly else []
+            if is_file or target_path.endswith(".app"):
+                subprocess.run(["open", *quiet, target_path], check=True, timeout=15)
+            else:  # an app by name: "Calculator", "Safari"
+                subprocess.run(["open", *quiet, "-a", target_path], check=True, timeout=15, capture_output=True)
+            return
+        if is_file:
             subprocess.Popen(["xdg-open", target_path])
+        elif shutil.which(target_path):
+            subprocess.Popen([shutil.which(target_path)], start_new_session=True)
+        elif shutil.which("gtk-launch"):  # an app by its desktop entry: "org.gnome.Calculator"
+            subprocess.run(["gtk-launch", target_path], check=True, timeout=15, capture_output=True)
+        else:
+            raise OSError(f"no app called {target_path!r} was found")
 
     try:
         await asyncio.to_thread(_open)
@@ -699,6 +684,8 @@ def capture_window(hwnd: int):
     with PW_RENDERFULLCONTENT asks the window to paint itself, rather than
     copying the screen). A PIL image, or None if it cannot be captured --
     a minimised window has nothing to paint."""
+    if not _WIN:
+        return _os().capture(hwnd)
     try:
         import ctypes
         import win32ui
@@ -742,6 +729,9 @@ def images_differ(before, after, threshold: float = 0.001) -> bool:
 
 
 def _post_click(hwnd: int, sx: int, sy: int, button: str, double: bool) -> None:
+    if not _WIN:
+        _os().send_click(hwnd, sx, sy, button, double)
+        return
     import win32api
     import win32con
     target = _deepest_window(hwnd, sx, sy)
@@ -761,6 +751,9 @@ def _post_click(hwnd: int, sx: int, sy: int, button: str, double: bool) -> None:
 
 
 def _top_window_at(sx: int, sy: int) -> int:
+    if not _WIN:
+        w = _os().window_at(sx, sy)
+        return w["hwnd"] if w else 0
     hwnd = win32gui.WindowFromPoint((sx, sy))
     return win32gui.GetAncestor(hwnd, 2) if hwnd else 0  # GA_ROOT
 
@@ -816,7 +809,7 @@ async def _own_click(x: int, y: int, sx: int, sy: int, button: str, double: bool
             time.sleep(0.35)
             if images_differ(before, capture_window(top)):
                 return {**base, "how": "click message to the window (it changed)",
-                        "window": win32gui.GetWindowText(top)}
+                        "window": _title(top)}
 
         # Rung 3: the real mouse, only with the user's say-so.
         if style["borrow"] == "never":
@@ -826,12 +819,11 @@ async def _own_click(x: int, y: int, sx: int, sy: int, button: str, double: bool
         if not borrow_mouse and style["borrow"] != "always":
             raise DesktopActionError(BORROW_ASK_MESSAGE + " Nothing was clicked.")
         _require("input")
-        import win32api
-        home = win32api.GetCursorPos()
+        home = _cursor()
         try:
             pyautogui.click(x=sx, y=sy, button=button, clicks=2 if double else 1)
         finally:
-            win32api.SetCursorPos(home)
+            _set_cursor(home)
         return {**base, "how": "borrowed your mouse for a moment, then put it back",
                 "pointer": "your mouse, borrowed with permission and returned"}
 
@@ -883,7 +875,7 @@ async def app_controls(title_contains: str) -> dict:
         entries = await uia.controls(hwnd)
     except uia.UiaError as exc:
         raise DesktopActionError(str(exc)) from exc
-    return {"window": win32gui.GetWindowText(hwnd), "controls": uia.describe(entries),
+    return {"window": _title(hwnd), "controls": uia.describe(entries),
             "how_to_use": "app_click / app_type with the number in brackets, or the control's name."}
 
 
@@ -915,7 +907,7 @@ async def app_click(title_contains: str, control: str, action: str = "press",
     if right > left and bottom > top:
         cx, cy = (left + right) // 2, (top + bottom) // 2
         await asyncio.to_thread(nova_pointer.pointer.glide, cx, cy, min(style["seconds"], 0.45))
-    return {"window": win32gui.GetWindowText(hwnd), **result,
+    return {"window": _title(hwnd), **result,
             "pointer": "Nova's own -- your mouse was not moved"}
 
 
@@ -937,7 +929,7 @@ async def app_type(title_contains: str, control: str, text: str,
     if note:
         result["focus"] = note
     result.pop("rect", None)
-    return {"window": win32gui.GetWindowText(hwnd), **result, "chars": len(text)}
+    return {"window": _title(hwnd), **result, "chars": len(text)}
 
 
 def refuse_if_fullscreen_focused(expect_window: str | None, verb: str) -> None:
@@ -968,8 +960,6 @@ async def _own_scroll(clicks: int, x: int, y: int, target: tuple[int, int],
             f"{covering['title'] or 'A fullscreen app'} is fullscreen there; Nova does not scroll it.")
 
     def _do() -> dict:
-        import win32api
-        import win32con
         watch = nova_pointer.Watch()
         nova_pointer.pointer.glide(sx, sy, style["seconds"], watch.check)
         watch.check()
@@ -977,9 +967,14 @@ async def _own_scroll(clicks: int, x: int, y: int, target: tuple[int, int],
         top = _top_window_at(sx, sy)
         if top:
             before = capture_window(top)
-            inner = _deepest_window(top, sx, sy)
-            wparam = (int(clicks) * 120 & 0xFFFF) << 16
-            win32gui.PostMessage(inner, win32con.WM_MOUSEWHEEL, wparam, win32api.MAKELONG(sx & 0xFFFF, sy & 0xFFFF))
+            if _WIN:
+                import win32api
+                import win32con
+                inner = _deepest_window(top, sx, sy)
+                wparam = (int(clicks) * 120 & 0xFFFF) << 16
+                win32gui.PostMessage(inner, win32con.WM_MOUSEWHEEL, wparam, win32api.MAKELONG(sx & 0xFFFF, sy & 0xFFFF))
+            else:
+                _os().send_scroll(top, sx, sy, clicks)
             time.sleep(0.35)
             if images_differ(before, capture_window(top)):
                 return {**base, "how": "wheel message to the window (it moved)"}
@@ -990,12 +985,12 @@ async def _own_scroll(clicks: int, x: int, y: int, target: tuple[int, int],
             raise DesktopActionError(BORROW_ASK_MESSAGE.replace("desktop_click", "desktop_scroll")
                                      + " Nothing was scrolled.")
         _require("input")
-        home = win32api.GetCursorPos()
+        home = _cursor()
         try:
             pyautogui.moveTo(sx, sy)
             pyautogui.scroll(clicks)
         finally:
-            win32api.SetCursorPos(home)
+            _set_cursor(home)
         return {**base, "how": "borrowed your mouse for a moment, then put it back"}
 
     try:
@@ -1029,6 +1024,8 @@ FOCUS_ASK = (
 
 
 def _process_of(hwnd: int) -> str:
+    if not _WIN:
+        return ((_os().window(hwnd) or {}).get("process") or "").lower()
     try:
         return psutil.Process(win32process.GetWindowThreadProcessId(hwnd)[1]).name().lower()
     except Exception:  # noqa: BLE001
@@ -1049,11 +1046,12 @@ def _learn_activator(process: str) -> None:
 
 def jumps_forward(hwnd: int) -> bool:
     """Will pressing a control in this window bring it to the front?"""
-    try:
-        if win32gui.GetClassName(hwnd) == UWP_FRAME:
-            return True
-    except Exception:  # noqa: BLE001
-        pass
+    if _WIN:
+        try:
+            if win32gui.GetClassName(hwnd) == UWP_FRAME:
+                return True
+        except Exception:  # noqa: BLE001
+            pass
     return _process_of(hwnd) in _learned_activators()
 
 
@@ -1064,13 +1062,18 @@ def guard_focus(hwnd: int, in_front: dict | None, allow_focus_change: bool) -> N
         return
     if jumps_forward(hwnd):
         raise DesktopActionError(FOCUS_ASK.format(
-            app=win32gui.GetWindowText(hwnd) or "That app",
+            app=_title(hwnd) or "That app",
             game=in_front.get("title") or in_front.get("process") or "a fullscreen app"))
 
 
 def _force_foreground(hwnd: int) -> bool:
     """SetForegroundWindow from a background process, via the documented
     route: briefly join the current foreground thread's input queue."""
+    if not _WIN:
+        try:
+            return _os().activate(hwnd) and _foreground() == hwnd
+        except Exception:  # noqa: BLE001
+            return False
     import ctypes
     import win32api
     try:
@@ -1096,17 +1099,17 @@ def keep_fullscreen_in_front(before: dict | None) -> str | None:
     if not before:
         return None
     try:
-        now = win32gui.GetForegroundWindow()
+        now = _foreground()
     except Exception:  # noqa: BLE001
         return None
     if now == before["hwnd"]:
         return None
-    thief = win32gui.GetWindowText(now) or "another window"
+    thief = _title(now) or "another window"
     # Remember it, so next time Nova asks first instead of finding out after.
     _learn_activator(_process_of(now))
     if _force_foreground(before["hwnd"]):
         return (f"{thief} grabbed focus when its control was pressed; Nova handed focus straight "
                 f"back to {before.get('title') or 'the fullscreen app'}.")
-    return (f"{thief} took focus when its control was pressed, and Windows would not let Nova hand it "
+    return (f"{thief} took focus when its control was pressed, and the system would not let Nova hand it "
             f"back to {before.get('title') or 'the fullscreen app'}. Tell the user. Nova will ask before "
             f"doing that in {thief} again while something is fullscreen.")

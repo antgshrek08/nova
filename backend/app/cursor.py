@@ -220,7 +220,13 @@ def flash(x: int, y: int, hold_ms: int = RING_MS) -> None:
     except Exception:  # noqa: BLE001
         return
     if not hasattr(ctypes, "windll"):
-        return  # not Windows; the glide is still visible
+        # macOS and Linux: the desktop app's overlay draws the same ring.
+        try:
+            from . import nova_pointer
+            nova_pointer.pointer.flash(x, y)
+        except Exception:  # noqa: BLE001
+            pass
+        return
 
     WS_POPUP = 0x80000000
     WS_EX_LAYERED = 0x00080000

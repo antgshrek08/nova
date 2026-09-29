@@ -20,7 +20,7 @@ import { operatorStop } from "./paperApi.js";
 import { UiProvider, useListKeys, useSelection, useUi } from "./ui.jsx";
 import usePrefs from "./usePrefs.js";
 import "./paper.css";
-import { IS_MAC, IS_WINDOWS, keys } from "./keys.js";
+import { IS_MAC, STOP_KEY, keys } from "./keys.js";
 
 const SECTIONS = [
   ["chat", "Chat", "chat"],
@@ -54,7 +54,7 @@ const SHORTCUTS = [
   ["Settings", keys("Ctrl+,")],
   ["Show or hide the sidebar", keys("Ctrl+B")],
   ["Day or night", keys("Ctrl+Shift+L")],
-  ...(IS_WINDOWS ? [["Stop everything Nova is doing", "Ctrl+Alt+Esc"]] : []),
+  ["Stop everything Nova is doing", STOP_KEY],
   ["Expand the chat / close a menu", "Esc"],
   ["Rename the selected chat", "F2"],
   ["Select several", keys("Ctrl+click, Shift+click")],

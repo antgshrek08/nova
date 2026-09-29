@@ -21,3 +21,7 @@ export const IS_TOUCH = typeof window !== "undefined" && window.matchMedia?.("(p
 export function tap(label) {
   return IS_TOUCH ? label.replace(/Right-click/g, "Press and hold").replace(/right-click/g, "press and hold") : label;
 }
+
+// The key that stops everything Nova is doing, on every system (registered by
+// the engine on Windows and by the desktop app on macOS and Linux).
+export const STOP_KEY = IS_MAC ? "⌃⌥Esc" : "Ctrl+Alt+Esc";

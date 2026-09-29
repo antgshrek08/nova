@@ -58,3 +58,48 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npm run build
+
+  desktop:
+    # Nova using a real app on a real desktop: Linux under Xvfb with a window
+    # manager and the accessibility bus, macOS on the runner's own desktop.
+    name: Nova uses a real app (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: backend
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Desktop for the test (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb openbox zenity at-spi2-core dbus-x11
+      - name: Install
+        run: |
+          grep -vE '^(chatterbox-tts|faster-whisper|vosk|openwakeword)' requirements.txt > core.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r core.txt pytest pytest-asyncio
+      - name: Live test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1600x900x24 &
+          sleep 2
+          dbus-run-session -- bash -c '
+            openbox &
+            sleep 1
+            /usr/libexec/at-spi-bus-launcher --launch-immediately &
+            sleep 2
+            export GNOME_ACCESSIBILITY=1 NO_AT_BRIDGE=0
+            NOVA_LIVE_DESKTOP=1 python -m pytest tests/test_desktop_live.py -v -s -p no:cacheprovider'
+      - name: Live test (macOS)
+        if: runner.os == 'macOS'
+        run: NOVA_LIVE_DESKTOP=1 python -m pytest tests/test_desktop_live.py -v -s -p no:cacheprovider

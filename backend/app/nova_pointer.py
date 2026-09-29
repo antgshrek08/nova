@@ -31,7 +31,10 @@ import time
 
 logger = logging.getLogger(__name__)
 
-HOTKEY_LABEL = "Ctrl+Alt+Esc"
+# The stop key. On Windows this thread registers it; on macOS and Linux the
+# desktop app registers it (Electron globalShortcut) and reports which one it
+# got, since a desktop may already own the first choice (KDE: Ctrl+Alt+Esc).
+HOTKEY_LABEL = "Control+Option+Esc" if sys.platform == "darwin" else "Ctrl+Alt+Esc"
 IDLE_HIDE_S = 4.0
 CORNER_MARGIN = 2
 STEPS_PER_SECOND = 90
@@ -95,6 +98,12 @@ _WINDOWS = sys.platform == "win32"
 
 
 def _monitors() -> list[tuple[int, int, int, int]]:
+    if not _WINDOWS:
+        try:
+            from . import desktop_os
+            return desktop_os.monitors()
+        except Exception:  # noqa: BLE001
+            return []
     try:
         import win32api
         return [tuple(rect) for _h, _dc, rect in win32api.EnumDisplayMonitors()]
@@ -107,7 +116,11 @@ def fullscreen_app() -> dict | None:
     video). None otherwise. Nova must not take focus from it, type into it,
     or draw over it."""
     if not _WINDOWS:
-        return None
+        try:
+            from . import desktop_os
+            return desktop_os.fullscreen_app()
+        except Exception:  # noqa: BLE001
+            return None
     try:
         import win32api
         import win32gui
@@ -388,7 +401,63 @@ class _Pointer:
             user32.DispatchMessageW(ctypes.byref(msg))
 
 
-pointer = _Pointer()
+class _OverlayPointer(_Pointer):
+    """macOS and Linux: the same pointer, drawn by the desktop app.
+
+    The glide, quiet mode and stop checks are _Pointer's own; only drawing
+    differs. Each move is published as an event, and Electron's overlay window
+    (frontend/electron/pointer-overlay) draws the arrow and its "Nova" tag
+    click-through and on top, exactly as the Win32 window does."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._subscribers: list[queue.Queue] = []
+        self._sub_lock = threading.Lock()
+
+    def subscribe(self) -> queue.Queue:
+        q: queue.Queue = queue.Queue(maxsize=512)
+        with self._sub_lock:
+            self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: queue.Queue) -> None:
+        with self._sub_lock:
+            if q in self._subscribers:
+                self._subscribers.remove(q)
+
+    @property
+    def watched(self) -> bool:
+        return bool(self._subscribers)
+
+    def _publish(self, event: dict) -> None:
+        with self._sub_lock:
+            targets = list(self._subscribers)
+        for q in targets:
+            try:
+                q.put_nowait(event)
+            except queue.Full:
+                pass
+
+    def start(self) -> bool:
+        return True
+
+    def move(self, x: int, y: int, *, quiet_checked: bool = False) -> None:
+        if not quiet_checked and point_under_fullscreen(x, y):
+            self.hide()
+            return
+        self._position = (x, y)
+        self._publish({"t": "move", "x": int(x), "y": int(y)})
+        self._schedule_hide()
+
+    def hide(self) -> None:
+        self._publish({"t": "hide"})
+
+    def flash(self, x: int, y: int) -> None:
+        """The click ring (cursor.flash on Windows)."""
+        self._publish({"t": "flash", "x": int(x), "y": int(y)})
+
+
+pointer = _Pointer() if _WINDOWS else _OverlayPointer()
 
 
 # ---------------------------------------------------------------- stopping
@@ -423,8 +492,13 @@ class Watch:
         if _hotkey_pressed_at >= self.armed_at:
             raise Stopped(f"Stopped: you pressed {HOTKEY_LABEL}. Nothing more was done.")
         try:
-            import win32api
-            if in_corner(win32api.GetCursorPos(), self._monitors):
+            if _WINDOWS:
+                import win32api
+                where = win32api.GetCursorPos()
+            else:
+                from . import desktop_os
+                where = desktop_os.cursor_pos()
+            if in_corner(where, self._monitors):
                 try:
                     from . import operator_workflows
                     operator_workflows.stop("Stopped: your mouse went into a screen corner.")
@@ -441,3 +515,18 @@ class Watch:
             from . import operator_workflows
             if operator_workflows.stopped():
                 raise Stopped("Stopped from the operator controls. Nothing more was done.")
+
+
+def press_stop_key(label: str | None = None) -> None:
+    """The desktop app's global shortcut was pressed (macOS and Linux)."""
+    global HOTKEY_LABEL
+    if label:
+        HOTKEY_LABEL = label
+    _on_hotkey()
+
+
+def set_hotkey_label(label: str) -> None:
+    """Which stop key the desktop app managed to register."""
+    global HOTKEY_LABEL
+    if label:
+        HOTKEY_LABEL = label

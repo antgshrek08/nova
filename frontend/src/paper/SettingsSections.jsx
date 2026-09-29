@@ -16,7 +16,8 @@ import Icon from "./icons.jsx";
 import { readyModels, WORKSPACE_MIN_MODELS } from "./models.js";
 import { addHomeworkSource, discoverHomework, homeworkSources, removeHomeworkSource, signInHomeworkSource } from "./paperApi.js";
 import { useUi } from "./ui.jsx";
-import { IS_WINDOWS } from "./keys.js";
+import { STOP_KEY } from "./keys.js";
+import SystemAccess from "./SystemAccess.jsx";
 
 /* ---- building blocks -------------------------------------------------- */
 
@@ -358,7 +359,7 @@ export function AutonomySection({ prefs }) {
   const speed = typeof s.desktop_click_seconds === "number" ? s.desktop_click_seconds : 0.45;
   return (
     <>
-      <Section title="Autonomy" desc={IS_WINDOWS ? "How much Nova may do on its own. Stop always works: Ctrl+Alt+Esc, the Agents screen, or throw your mouse into a screen corner." : "How much Nova may do on its own. Stop always works from the Agents screen."}>
+      <Section title="Autonomy" desc={`How much Nova may do on its own. Stop always works: ${STOP_KEY}, the Agents screen, or throw your mouse into a screen corner.`}>
         <div className="p-modes" role="group" aria-label="Autonomy">
           {LEVELS.map(([id, name, note]) => (
             <button key={id} className="p-mode" aria-pressed={level === id} onClick={() => prefs.save({ autonomy_level: id })}>
@@ -369,6 +370,9 @@ export function AutonomySection({ prefs }) {
         <Row label="Let Nova use tools" desc="Off makes Nova a plain chat: it can talk about your files but not open or change them">
           <Switch on={s.agent_tools_enabled !== false} label="Let Nova use tools" onChange={(v) => prefs.save({ agent_tools_enabled: v })} />
         </Row>
+      </Section>
+      <Section title="Using your computer" desc="What this computer lets Nova do in other apps.">
+        <SystemAccess />
       </Section>
       <Section title="Nova's cursor" desc="With its own pointer, Nova clicks through apps without moving your mouse, so you can keep working or gaming. It never clicks into a fullscreen game.">
         <Row label="Pointer">

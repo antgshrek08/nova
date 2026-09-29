@@ -428,6 +428,11 @@ ipcMain.handle("claim-voice-audio", async (event) => {
  * in Nova's browser when Settings > Browser says so (the backend decides and
  * opens it), otherwise to the user's default browser. */
 async function openLink(url) {
+  // macOS: the Privacy & Security panes Nova asks the user to switch it on in.
+  if (process.platform === "darwin" && /^x-apple\.systempreferences:com\.apple\.preference\.security\?Privacy_[A-Za-z]+$/.test(url)) {
+    shell.openExternal(url);
+    return;
+  }
   let target;
   try { target = new URL(url); } catch { return; }
   if (!["http:", "https:", "mailto:"].includes(target.protocol)) return;
@@ -1071,8 +1076,13 @@ app.whenReady().then(async () => {
     if (app.commandLine.hasSwitch("nova-miniplayer")) createMiniplayerWindow();
   }
 
+  // macOS and Linux: Nova's pointer overlay and the stop key (Windows' engine
+  // draws and registers these itself).
+  const pointerOverlay = require("./pointer-overlay.cjs");
+  pointerOverlay.start();
+
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) showMainWindow();
+    if (!BrowserWindow.getAllWindows().some((w) => !pointerOverlay.isOverlay(w))) showMainWindow();
   });
 });
 

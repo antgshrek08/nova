@@ -5045,3 +5045,72 @@ async def source_update_rollback():
 async def source_update_status():
     with _client_errors():
         return source_updates.status()
+
+
+# --- Nova's pointer and the stop key on macOS and Linux ---------------------
+#
+# On Windows nova_pointer draws its own overlay window and registers the stop
+# key itself. On macOS and Linux the desktop app does both (a click-through
+# overlay window and an Electron global shortcut), fed from here, so the
+# pointer, the click ring and the stop key behave the same on every system.
+
+def _local_only(request: Request) -> None:
+    if not access.is_loopback(request.client.host if request.client else None):
+        raise HTTPException(403, "Only the desktop app on this computer can use this.")
+
+
+@app.get("/pointer/events")
+async def pointer_events(request: Request):
+    """Server-sent events: {"t": "move"|"hide"|"flash", "x", "y"}."""
+    _local_only(request)
+    from . import nova_pointer
+    subscribe = getattr(nova_pointer.pointer, "subscribe", None)
+    if subscribe is None:
+        raise HTTPException(404, "Windows draws Nova's pointer natively.")
+    q = subscribe()
+
+    async def stream():
+        import queue as _queue
+        try:
+            yield "retry: 2000\n\n"
+            while not await request.is_disconnected():
+                try:
+                    event = await asyncio.to_thread(q.get, True, 15)
+                except _queue.Empty:
+                    yield ": keep-alive\n\n"
+                    continue
+                yield f"data: {json.dumps(event)}\n\n"
+        finally:
+            nova_pointer.pointer.unsubscribe(q)
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
+@app.post("/pointer/hotkey")
+async def pointer_hotkey(request: Request, body: dict = Body(default={})):
+    """The desktop app registered the stop key (or pressed it: pressed=true)."""
+    _local_only(request)
+    from . import nova_pointer
+    label = str(body.get("label") or "")[:40]
+    if body.get("pressed"):
+        nova_pointer.press_stop_key(label)
+        return {"stopped": True}
+    nova_pointer.set_hotkey_label(label)
+    return {"label": nova_pointer.HOTKEY_LABEL}
+
+
+@app.get("/desktop/status")
+async def desktop_status():
+    """What Nova can do on this computer's desktop, for Settings and onboarding."""
+    from . import desktop, desktop_os, nova_pointer
+    perms = await asyncio.to_thread(desktop_os.permissions)
+    return {"platform": sys.platform, "unavailable": desktop.unavailable(), "permissions": perms,
+            "stop_key": nova_pointer.HOTKEY_LABEL}
+
+
+@app.post("/desktop/permissions/request")
+async def desktop_permissions_request(request: Request):
+    """Show macOS's own permission prompts (Accessibility, Screen Recording)."""
+    _local_only(request)
+    from . import desktop_os
+    return {"permissions": await asyncio.to_thread(desktop_os.request_permissions)}

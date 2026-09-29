@@ -880,3 +880,5 @@
   .p-setmodal .p-row { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
   .p-setmodal .p-row .ctl, .p-setmodal .p-row .ctl select, .p-setmodal .p-row .ctl .p-input { max-width: none; }
 }
+.p-sysaccess { display: grid; gap: 4px; }
+.p-sysaccess .note { display: flex; align-items: center; gap: 6px; margin: 0; }

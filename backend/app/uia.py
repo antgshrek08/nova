@@ -388,3 +388,51 @@ def act_at_blocking(x: int, y: int, timeout: float = 10.0) -> dict | None:
     if _executor is None:
         _executor = concurrent.futures.ThreadPoolExecutor(1, thread_name_prefix="nova-uia", initializer=_init_thread)
     return _executor.submit(_act_at_sync, x, y).result(timeout)
+
+
+# ---------------------------------------------------------------- macOS and Linux
+#
+# The same four calls, answered by the platform's own accessibility system:
+# macOS's AX API (ax_mac.py) and Linux's AT-SPI (ax_linux.py). Entries, refs,
+# verbs and refusals are identical, so app_controls / app_click / app_type
+# and the click ladder do not care which system they are on.
+
+if sys.platform != "win32":
+    AVAILABLE = True
+    _import_error = None
+    _ax_executor: concurrent.futures.ThreadPoolExecutor | None = None
+
+    def _platform():
+        if sys.platform == "darwin":
+            from . import ax_mac as module
+        else:
+            from . import ax_linux as module
+        return module
+
+    def _ax_pool() -> concurrent.futures.ThreadPoolExecutor:
+        global _ax_executor
+        if _ax_executor is None:
+            _ax_executor = concurrent.futures.ThreadPoolExecutor(1, thread_name_prefix="nova-ax")
+        return _ax_executor
+
+    def _plain(fn, *args):
+        try:
+            return fn(*args)
+        except UiaError:
+            raise
+        except Exception as exc:  # noqa: BLE001 -- AxError and friends, said plainly
+            raise UiaError(str(exc)) from exc
+
+    async def controls(hwnd: int, limit: int = 250) -> list[dict]:  # noqa: F811
+        return await asyncio.wrap_future(_ax_pool().submit(_plain, _platform().controls_sync, hwnd, limit))
+
+    async def act(hwnd: int, *, ref: int | None = None, name: str | None = None,  # noqa: F811
+                  action: str = "press", text: str | None = None, replace: bool = False) -> dict:
+        return await asyncio.wrap_future(_ax_pool().submit(
+            _plain, _platform().act_sync, hwnd, ref, name, action, text, replace))
+
+    async def act_at(x: int, y: int) -> dict | None:  # noqa: F811
+        return await asyncio.wrap_future(_ax_pool().submit(_plain, _platform().act_at_sync, x, y))
+
+    def act_at_blocking(x: int, y: int, timeout: float = 10.0) -> dict | None:  # noqa: F811
+        return _ax_pool().submit(_platform().act_at_sync, x, y).result(timeout)
