@@ -447,7 +447,7 @@ export function VoiceSection({ prefs }) {
     ui.toast("Push-to-talk shortcut set.");
   }
 
-  const groups = [["online", "Natural voices", "Need an internet connection. If it drops, Nova uses Ryan."], ["offline", "Offline voices", "Run on this computer."], ["cloned", "Your cloned voices", "Made from a clip you gave Nova. Slower to speak."]];
+  const groups = [["online", "Natural voices", "Need an internet connection. If it drops, Nova uses the offline voice when it's installed."], ["offline", "Offline voices", "Run on this computer."], ["cloned", "Your cloned voices", "Made from a clip you gave Nova. Slower to speak."]];
   return (
     <>
       <Section title="Voice">

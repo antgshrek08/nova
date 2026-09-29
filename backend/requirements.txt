@@ -54,13 +54,10 @@ numpy>=1.24
 # work in Electron (Google gates its cloud recognition service to official
 # Chrome builds).
 faster-whisper>=1.0
-piper-tts==1.8.0
 # The online voices in Settings > Voice (app/fast_speech.py); no API key.
 edge-tts==7.2.8
 # QR code of the phone setup link (Settings > Phone access).
 qrcode==8.2
-# Repeating events from calendar links (app/calendar_sources.py).
-recurring-ical-events==3.8.0
 vosk==0.3.45
 
 # Memory graph (Milestone 2, see app/graph.py) -- Graphify's own code-graph
@@ -93,10 +90,15 @@ pywinpty>=2.0; sys_platform == "win32"
 sympy>=1.13            # checking math answers (coursework_autopilot.py)
 pillow>=10.0           # screenshots and images
 python-dateutil>=2.9   # due dates on homework sites
-icalendar>=6.0         # calendar links
+icalendar>=6.0         # calendar links (repeats expanded with dateutil)
 pyperclip>=1.9         # clipboard
 yt-dlp>=2025.1         # watching videos (video.py)
 soundfile>=0.12        # voice audio
 pywin32>=306; sys_platform == "win32"
 # The interactive terminal on macOS and Linux (pywinpty above is Windows').
 ptyprocess>=0.7; sys_platform != "win32"
+
+# Not listed here on purpose: the offline "Ryan" voice. Its engine (piper-tts)
+# is GPL-3.0 and the voice's training data is licensed non-commercial
+# (CC BY-NC-SA 4.0), so it is never bundled with Nova. Each person can add it
+# to their own computer with: python backend/download_models.py

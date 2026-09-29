@@ -81,16 +81,21 @@ function VoiceStep({ prefs }) {
     } catch (e) {
       setLoading(null);
       setPlaying(null);
-      setVoiceMsg(`That voice couldn't play: ${e.message}. Online voices need internet; Ryan works offline.`);
+      setVoiceMsg(`That voice couldn't play: ${e.message}. Online voices need internet${offline ? "; Ryan works offline" : ""}.`);
     }
   }
-  const current = s.tts_voice_id || "default";
-  const [names, setNames] = useState({});
+  const [names, setNames] = useState(null);
+  // The offline voice (Ryan, "default") is an optional download; the engine
+  // lists it only when it's installed, and speaks Ava in its place otherwise.
+  const offline = !names || "default" in names;
+  const saved = s.tts_voice_id || "default";
+  const current = saved === "default" && !offline ? "ava" : saved;
   useEffect(() => {
     fetch(`${BACKEND_URL}/tts/voices`).then((r) => r.json()).then((d) => setNames(Object.fromEntries((d.voices || []).map((v) => [v.id, v.name])))).catch(() => {});
   }, []);
   // A voice already chosen that isn't one of the suggestions stays listed first.
-  const list = VOICES.some(([id]) => id === current) ? VOICES : [[current, (names[current] || "Your voice").split(" · ")[0], "your current voice"], ...VOICES];
+  const base = VOICES.filter(([id]) => id !== "default" || offline);
+  const list = base.some(([id]) => id === current) ? base : [[current, ((names || {})[current] || "Your voice").split(" · ")[0], "your current voice"], ...base];
   return (
     <div className="p-onbblock">
       <div className="p-seg" role="group" aria-label="Speak replies">

@@ -1,0 +1,38 @@
+name: Bug report
+description: Something in Nova doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to make it happen
+      placeholder: |
+        1. Open Settings, Models
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: System
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Nova version or commit
+      placeholder: "0.1.0, or the commit you built from"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages or screenshots
+      description: Remove any API keys, passwords, email addresses or other personal details first.

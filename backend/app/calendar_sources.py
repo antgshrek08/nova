@@ -5,7 +5,7 @@ Two ways in, so every user has one that needs no developer setup:
 - A calendar link (iCal/ICS). Google Calendar ("Secret address in iCal
   format"), Outlook and Microsoft 365 ("Publish a calendar"), Yahoo, a school
   or team calendar -- almost every calendar can hand out one. Read only, and
-  repeating events are expanded properly (recurring_ical_events).
+  repeating events are expanded properly (_occurrences, on dateutil's rrule).
 - Google Calendar through the Google Workspace connector, when the user has
   connected it (Settings > Connectors). Read and write, every calendar on the
   account. The connector answers in sentences, so its event lines are parsed
@@ -73,20 +73,76 @@ async def _fetch(url: str) -> bytes:
     return r.content
 
 
+def _occurrences(ev, start: datetime, end: datetime) -> list[tuple]:
+    """(start, end) of each time a VEVENT happens inside [start, end): its
+    RRULE and RDATEs, minus EXDATEs. Moved single instances (RECURRENCE-ID)
+    are separate VEVENTs, handled by the caller."""
+    from dateutil.rrule import rruleset, rrulestr
+
+    s = ev.get("DTSTART").dt
+    timed = isinstance(s, datetime)
+    if ev.get("DTEND") is not None:
+        length = ev.get("DTEND").dt - s
+    elif ev.get("DURATION") is not None:
+        length = ev.get("DURATION").dt
+    else:
+        length = timedelta(0) if timed else timedelta(days=1)
+    first = s if timed else datetime(s.year, s.month, s.day)
+    floating = first.tzinfo is None  # all-day and "floating" times are wall-clock times
+
+    def norm(d):
+        d = d if isinstance(d, datetime) else datetime(d.year, d.month, d.day)
+        if floating:
+            return d.astimezone().replace(tzinfo=None) if d.tzinfo else d
+        return d if d.tzinfo else d.replace(tzinfo=first.tzinfo)
+
+    lo, hi = norm(start), norm(end)
+    times = rruleset()
+    if ev.get("RRULE") is not None:
+        text = ev.get("RRULE").to_ical().decode()
+        if floating:
+            text = re.sub(r"(UNTIL=\d{8}(?:T\d{6})?)Z", r"\1", text)
+        else:  # dateutil wants UNTIL in UTC when the start has a time zone
+            text = re.sub(r"UNTIL=(\d{8})(?=;|$)", r"UNTIL=\1T235959Z", text)
+            text = re.sub(r"UNTIL=(\d{8}T\d{6})(?=;|$)", r"UNTIL=\1Z", text)
+        times.rrule(rrulestr(text, dtstart=first))
+    else:
+        times.rdate(first)
+    for key, add in (("RDATE", times.rdate), ("EXDATE", times.exdate)):
+        values = ev.get(key)
+        for group in values if isinstance(values, list) else ([values] if values is not None else []):
+            for d in group.dts:
+                add(norm(d.dt))
+    out = []
+    for when in times.between(lo - length, hi, inc=True):
+        overlaps = when < hi and (when + length > lo or (not length and when >= lo))
+        if overlaps:
+            begin = when if timed else when.date()
+            out.append((begin, begin + length))
+    return out
+
+
 def _events_from_ics(data: bytes, start: datetime, end: datetime, name: str) -> list[dict]:
     import icalendar
-    import recurring_ical_events
     cal = icalendar.Calendar.from_ical(data)
+    events = [ev for ev in cal.walk("VEVENT") if ev.get("DTSTART") is not None]
+    # A moved or edited single occurrence replaces the one its series would
+    # have produced at that RECURRENCE-ID.
+    moved = {(str(ev.get("UID")), _local(ev.get("RECURRENCE-ID").dt).isoformat())
+             for ev in events if ev.get("RECURRENCE-ID") is not None}
     rows = []
-    for ev in recurring_ical_events.of(cal).between(start, end):
-        s = ev.get("DTSTART").dt if ev.get("DTSTART") else None
-        e = ev.get("DTEND").dt if ev.get("DTEND") else None
-        if s is None:
+    for ev in events:
+        if str(ev.get("STATUS") or "").upper() == "CANCELLED":
             continue
-        all_day = isinstance(s, date) and not isinstance(s, datetime)
-        rows.append({"kind": "event", "title": str(ev.get("SUMMARY") or "(no title)"),
-                     "start": _local(s).isoformat(), "end": _local(e).isoformat() if e else None,
-                     "all_day": all_day, "where": str(ev.get("LOCATION") or ""), "source": name, "readonly": True})
+        series = ev.get("RECURRENCE-ID") is None
+        for s, e in _occurrences(ev, start, end):
+            if series and (str(ev.get("UID")), _local(s).isoformat()) in moved:
+                continue
+            all_day = isinstance(s, date) and not isinstance(s, datetime)
+            rows.append({"kind": "event", "title": str(ev.get("SUMMARY") or "(no title)"),
+                         "start": _local(s).isoformat(), "end": _local(e).isoformat() if e else None,
+                         "all_day": all_day, "where": str(ev.get("LOCATION") or ""), "source": name, "readonly": True})
+    rows.sort(key=lambda r: r["start"])
     return rows
 
 

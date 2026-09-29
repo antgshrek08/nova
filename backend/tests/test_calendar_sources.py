@@ -49,3 +49,43 @@ def test_google_event_lines_are_parsed_by_shape_only():
     assert cal["name"] == "Family" and cal["id"].startswith("fam@")
     primary = calendar_sources.CAL_LINE.match('- "me@example.com" (Primary) (ID: me@example.com)')
     assert primary["primary"]
+
+
+MOVED = b"""BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:class
+DTSTART;TZID=America/New_York:20260106T090000
+DTEND;TZID=America/New_York:20260106T100000
+RRULE:FREQ=WEEKLY;UNTIL=20260127
+EXDATE;TZID=America/New_York:20260113T090000
+SUMMARY:Class
+END:VEVENT
+BEGIN:VEVENT
+UID:class
+RECURRENCE-ID;TZID=America/New_York:20260120T090000
+DTSTART;TZID=America/New_York:20260120T110000
+DTEND;TZID=America/New_York:20260120T120000
+SUMMARY:Class (moved)
+END:VEVENT
+BEGIN:VEVENT
+UID:break
+DTSTART;VALUE=DATE:20260110
+DTEND;VALUE=DATE:20260111
+RRULE:FREQ=DAILY;COUNT=2
+SUMMARY:Break
+END:VEVENT
+END:VCALENDAR
+"""
+
+
+def test_skipped_and_moved_repeats_and_all_day_events():
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    rows = calendar_sources._events_from_ics(MOVED, start, start + timedelta(days=40), "School")
+    got = [(r["title"], r["start"][:16], r["all_day"]) for r in rows]
+    assert got == [
+        ("Class", "2026-01-06T09:00", False),
+        ("Break", "2026-01-10T00:00", True),
+        ("Break", "2026-01-11T00:00", True),
+        ("Class (moved)", "2026-01-20T11:00", False),
+        ("Class", "2026-01-27T09:00", False),
+    ]

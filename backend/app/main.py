@@ -842,7 +842,8 @@ async def list_tts_voices():
         "voices": [
             *[{"id": key, "name": label, "kind": "online", "note": "Natural voice, needs internet"}
               for key, _edge, label in fast_speech.CATALOG],
-            {"id": tts.DEFAULT_VOICE_ID, "name": "Ryan · offline", "kind": "offline", "note": "Instant, works without internet"},
+            *([{"id": tts.DEFAULT_VOICE_ID, "name": "Ryan · offline", "kind": "offline", "note": "Instant, works without internet"}]
+              if fast_speech.offline_ready() else []),
             {"id": "chatterbox-default", "name": "Chatterbox · offline", "kind": "offline", "note": "Most lifelike offline voice, slower"},
             *[{"id": str(v["id"]), "name": v["name"], "kind": "cloned", "note": "Your cloned voice, offline, slower"} for v in cloned],
         ]

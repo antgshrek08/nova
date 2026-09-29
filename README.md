@@ -23,7 +23,8 @@ Works on **Windows, macOS and Linux**.
 - **Agents and Workspace**: hand Nova longer jobs and watch them run.
 - **Memory**: what Nova knows about you, which you can read, edit and delete,
   plus your Obsidian notes.
-- **Voice**: wake word, speech-to-text and a choice of voices.
+- **Voice**: wake word, speech-to-text and a choice of voices (online voices
+  built in; an offline voice is an optional download).
 - **Phone**: open Nova on your phone as an app (no app store needed), with
   notifications.
 
@@ -44,7 +45,7 @@ Or from source: install [Python 3.12+](https://www.python.org/downloads/) and
 cd backend
 python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python download_models.py   # offline voice and wake word
+.venv\Scripts\python download_models.py   # wake word, and the offline voice if you want it
 .venv\Scripts\python -m playwright install chromium
 cd ..\frontend
 npm ci
@@ -105,3 +106,20 @@ an event loop that can't start subprocesses, which breaks the CLI-based
 models. `scripts/dev-backend.ps1` restarts it on changes instead.
 
 Every push is tested on Windows, macOS and Linux (see `.github/workflows`).
+
+## License
+
+Copyright (c) 2026 Anthony Grant. Nova is **source-available**, not open
+source: the code is public so you can read it, learn from it and use it, under
+the [PolyForm Strict License 1.0.0](LICENSE).
+
+- **Free** for personal use, study, hobby projects, and for schools,
+  charities, research and public organizations.
+- **Not allowed** without permission: redistributing Nova, publishing changed
+  versions of it, or using it for commercial purposes.
+- **Commercial use or other licensing**: open an issue titled
+  "Commercial license" and the owner will get in touch.
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), including
+the contributor terms. Nova is built on many open-source packages, listed with
+their licenses in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -1,0 +1,18 @@
+name: Feature request
+description: An idea for Nova
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The problem or situation, not the solution yet.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How Nova could help. Mockups or examples are welcome.
+    validations:
+      required: true

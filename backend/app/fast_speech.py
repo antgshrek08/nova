@@ -126,6 +126,13 @@ async def _synthesize_edge(text: str, voice: str | None = None) -> bytes:
     return bytes(audio_bytes)
 
 
+def offline_ready() -> bool:
+    """The offline Ryan voice is an optional download (download_models.py):
+    its engine and model are here."""
+    import importlib.util
+    return MODEL_PATH.exists() and importlib.util.find_spec("piper") is not None
+
+
 async def synthesize(text: str, voice: str | None = None) -> bytes:
     """Main speech entrypoint. Sanitizes text, then speaks it in the chosen
     online voice, or in the offline Ryan voice when none was chosen (or the
@@ -133,6 +140,9 @@ async def synthesize(text: str, voice: str | None = None) -> bytes:
     cleaned = clean_for_speech(text)
     if not cleaned or not cleaned.strip():
         return b""
+
+    if not neural_voice(voice) and not offline_ready():
+        voice = CATALOG[0][0]  # no offline voice installed: speak online instead of not at all
 
     if neural_voice(voice):
         try:
