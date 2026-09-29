@@ -117,8 +117,8 @@ the [PolyForm Strict License 1.0.0](LICENSE).
   charities, research and public organizations.
 - **Not allowed** without permission: redistributing Nova, publishing changed
   versions of it, or using it for commercial purposes.
-- **Commercial use or other licensing**: open an issue titled
-  "Commercial license" and the owner will get in touch.
+- **Commercial use, buying or other licensing**: email
+  [anthonygrant08@gmail.com](mailto:anthonygrant08@gmail.com), or open an issue titled "Commercial license".
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), including
 the contributor terms. Nova is built on many open-source packages, listed with

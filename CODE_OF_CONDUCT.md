@@ -84,4 +84,4 @@ For answers to common questions about this code of conduct, see the FAQ at [http
 
 ## Reporting in this project
 
-To report something privately, open the repository's **Security** tab and choose **Report a vulnerability**, and start the title with "Conduct:". Only the maintainer can see these reports. For a single comment, issue or pull request you can also use GitHub's **Report content** option in its menu.
+To report something privately, email [anthonygrant08@gmail.com](mailto:anthonygrant08@gmail.com), or open the repository's **Security** tab and choose **Report a vulnerability**, and start the title with "Conduct:". Only the maintainer can see these reports. For a single comment, issue or pull request you can also use GitHub's **Report content** option in its menu.

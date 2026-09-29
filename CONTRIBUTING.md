@@ -12,6 +12,8 @@ Thanks for helping. Bug reports, ideas and pull requests are all welcome.
 
 Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
+Questions about licensing or using Nova commercially: [anthonygrant08@gmail.com](mailto:anthonygrant08@gmail.com).
+
 ## Setting up
 
 Follow the install steps in the [README](README.md) for your system. Then:

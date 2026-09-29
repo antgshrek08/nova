@@ -6,9 +6,12 @@ privately.
 
 ## Reporting a problem
 
-**Please don't open a public issue.** Instead, open the repository's
-**Security** tab and choose **Report a vulnerability**. Only the maintainer can
-see the report.
+**Please don't open a public issue.** Instead, either:
+
+- email [anthonygrant08@gmail.com](mailto:anthonygrant08@gmail.com) with "Nova security" in the subject, or
+- open the repository's **Security** tab and choose **Report a vulnerability**.
+
+Only the maintainer sees either one.
 
 Include what you can:
 
