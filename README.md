@@ -45,6 +45,7 @@ cd backend
 python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
 .venv\Scripts\python download_models.py   # offline voice and wake word
+.venv\Scripts\python -m playwright install chromium
 cd ..\frontend
 npm ci
 npm run build
