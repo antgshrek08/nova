@@ -21,13 +21,13 @@ import os
 import tempfile
 from pathlib import Path
 
-from faster_whisper import WhisperModel
-
-_model: WhisperModel | None = None
+# faster-whisper is part of the optional voice install; imported when first
+# used so Nova starts without it.
+_model = None
 _model_lock = asyncio.Lock()
 
 
-async def get_model() -> WhisperModel:
+async def get_model():
     global _model
     if _model is not None:
         return _model
@@ -39,6 +39,10 @@ async def get_model() -> WhisperModel:
         # accuracy is good enough for this use case, confirmed live against
         # a real synthesized clip during development (one word substituted
         # out of ~25).
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError as exc:
+            raise RuntimeError("Speech-to-text isn't installed. Run install.sh (or pip install faster-whisper).") from exc
         _model = await asyncio.to_thread(WhisperModel, "tiny.en", device="cpu", compute_type="int8")
         return _model
 

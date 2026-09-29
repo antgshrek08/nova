@@ -44,6 +44,7 @@ Or from source: install [Python 3.12+](https://www.python.org/downloads/) and
 cd backend
 python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python download_models.py   # offline voice and wake word
 cd ..\frontend
 npm ci
 npm run build

@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 import time
 import re
-from vosk import Model, KaldiRecognizer, SetLogLevel
 
 MODEL_PATH = Path(__file__).resolve().parents[1] / "models/vosk-model-small-en-us-0.15"
 WAKEWORD_SAMPLE_RATE = 16000
@@ -22,13 +21,18 @@ async def get_model():
     async with _lock:
         if _model is None:
             if not MODEL_PATH.is_dir():
-                raise RuntimeError("Nova wake model is missing. Run scripts/install-wakeword.ps1.")
+                raise RuntimeError("Nova wake model is missing. Run: python backend/download_models.py")
+            try:
+                from vosk import Model, SetLogLevel
+            except ImportError as exc:
+                raise RuntimeError("Wake word isn't installed. Run install.sh (or pip install vosk).") from exc
             SetLogLevel(-1)
             _model = await asyncio.to_thread(Model, str(MODEL_PATH))
         return _model
 
 class Detector:
     def __init__(self, model):
+        from vosk import KaldiRecognizer
         # Unknown-word alternative avoids forcing ordinary speech into a wake phrase.
         self.recognizer = KaldiRecognizer(model, WAKEWORD_SAMPLE_RATE, json.dumps(sorted(PHRASES) + ["[unk]"]))
         self.recognizer.SetWords(True)

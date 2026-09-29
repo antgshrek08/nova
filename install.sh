@@ -95,6 +95,7 @@ if [ "$VOICE" = 1 ]; then
   say "Installing voice (optional -- Nova runs without it)"
   if "$VENV/bin/python" -m pip install "setuptools<81" chatterbox-tts==0.1.7 faster-whisper piper-tts==1.8.0 vosk==0.3.45 openwakeword; then
     echo "Voice installed."
+    "$VENV/bin/python" "$NOVA_DIR/backend/download_models.py" || warn "Voice models did not download. Retry: backend/.venv/bin/python backend/download_models.py"
   else
     warn "Voice did not install. Nova still works, and the online voices in Settings > Voice need nothing extra."
     warn "Retry later with: ./install.sh"
