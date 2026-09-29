@@ -170,12 +170,27 @@ def test_voice_catalog_routes_online_and_offline():
 
 
 def test_voice_list_offers_online_offline_and_cloned():
-    from app import main
-    with patch.object(main.db, "list_tts_voices", AsyncMock(return_value=[{"id": 5, "name": "Mine"}])):
+    from app import fast_speech, main
+    with patch.object(main.db, "list_tts_voices", AsyncMock(return_value=[{"id": 5, "name": "Mine"}])),             patch.object(fast_speech, "offline_ready", return_value=True):
         voices = asyncio.run(main.list_tts_voices())["voices"]
     kinds = {v["kind"] for v in voices}
     assert {"online", "offline", "cloned"} <= kinds
     assert any(v["id"] == "default" and "offline" in v["name"].lower() for v in voices)
+
+
+def test_offline_voice_is_listed_only_when_installed_and_nova_still_speaks():
+    from app import fast_speech, main
+    with patch.object(main.db, "list_tts_voices", AsyncMock(return_value=[])),             patch.object(fast_speech, "offline_ready", return_value=False):
+        voices = asyncio.run(main.list_tts_voices())["voices"]
+    assert not any(v["id"] == "default" for v in voices)
+    spoken = []
+
+    async def edge(text, voice=None):
+        spoken.append(voice)
+        return b"x" * 200
+    with patch.object(fast_speech, "offline_ready", return_value=False),             patch.object(fast_speech, "_synthesize_edge", edge):
+        assert asyncio.run(fast_speech.synthesize("Hello there.", voice="default"))
+    assert spoken == ["ava"]
 
 
 def test_open_link_refuses_non_web_and_defaults_to_the_users_browser():
