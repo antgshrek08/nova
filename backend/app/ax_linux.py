@@ -320,7 +320,10 @@ def tree_summary(depth: int = 2) -> list:
             role = str(_call(ref, ACC, "GetRoleName")[0])
         except Exception as exc:  # noqa: BLE001
             role = f"? ({exc})"
-        item = {"ref": list(ref), "role": role, "name": str(_prop(ref, ACC, "Name") or "")}
+        states = _states(ref)
+        item = {"role": role, "name": str(_prop(ref, ACC, "Name") or ""),
+                "states": [i for i in range(64) if states >> i & 1],
+                "ifaces": [i.rsplit(".", 1)[-1] for i in _interfaces(ref)]}
         if level < depth:
             item["children"] = [node(c, level + 1) for c in _children(ref)[:12]]
         return item

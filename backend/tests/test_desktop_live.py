@@ -65,7 +65,7 @@ def test_linux_nova_uses_a_real_app():
         # Its controls, through AT-SPI.
         from app import ax_linux
         import json
-        print("accessibility tree:", json.dumps(_wait_for(lambda: ax_linux.tree_summary(3), seconds=5), indent=1)[:6000])
+        print("accessibility tree:", json.dumps(_wait_for(lambda: ax_linux.tree_summary(12), seconds=5))[:12000])
         controls = _wait_for(lambda: _try_controls(uia, window["hwnd"]))
         assert controls, "no controls read"
         kinds = {c["type"] for c in controls}
