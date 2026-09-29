@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 ACC = "org.a11y.atspi.Accessible"
 ROLES = {
     "push button": "button", "button": "button", "toggle button": "checkbox", "check box": "checkbox",
-    "radio button": "radio", "entry": "edit", "password text": "edit", "text": "edit", "spin button": "spinner",
+    "radio button": "radio", "entry": "edit", "text box": "edit",  # GTK4
+     "password text": "edit", "text": "edit", "spin button": "spinner",
     "combo box": "combobox", "link": "hyperlink", "menu item": "menuitem", "check menu item": "menuitem",
     "radio menu item": "menuitem", "list item": "listitem", "table cell": "dataitem", "tree item": "treeitem",
     "page tab": "tabitem", "slider": "slider", "label": "text", "static": "text", "heading": "text",
