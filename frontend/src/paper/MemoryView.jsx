@@ -5,7 +5,7 @@ import Guide, { GuideButton } from "./Guide.jsx";
 import Reactor from "./Reactor.jsx";
 import { hexToRgb } from "./palettes.js";
 import { Checkbox, SelectionBar, useListKeys, useSelection, useUi } from "./ui.jsx";
-import { keys } from "./keys.js";
+import { IS_TOUCH, keys } from "./keys.js";
 
 const CATEGORY = { fact: "About you", preference: "Preferences", schedule: "Courses and schedule", project: "Projects", person: "People" };
 
@@ -227,7 +227,7 @@ export default function MemoryView({ palette, dark }) {
                 </div>
               );
             })}
-            {shown.length > 0 && <p className="note">{keys("Shift+click selects a range, Ctrl+A selects everything,")} Delete forgets, Esc clears. Right-click for more.</p>}
+            {shown.length > 0 && <p className="note">{IS_TOUCH ? "Tap the boxes to select several. Press and hold a memory for more." : `${keys("Shift+click selects a range, Ctrl+A selects everything,")} Delete forgets, Esc clears. Right-click for more.`}</p>}
           </div>
           <div className="p-stack">
             {facts && facts.length > 0 && <Graph facts={shown} palette={palette} dark={dark} />}

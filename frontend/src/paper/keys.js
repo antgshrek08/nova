@@ -13,3 +13,11 @@ export function keys(label) {
     .replace(/Alt\+/g, "⌥")
     .replace(/Shift\+/g, "⇧");
 }
+
+// Phones and tablets: no right-click; menus open with press and hold instead
+// (see UiProvider's long-press in ui.jsx).
+export const IS_TOUCH = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+
+export function tap(label) {
+  return IS_TOUCH ? label.replace(/Right-click/g, "Press and hold").replace(/right-click/g, "press and hold") : label;
+}

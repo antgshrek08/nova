@@ -4328,8 +4328,19 @@ async def share_to_nova(body: ShareRequest):
 # instead of being told where its backend is. Mounted under /app rather than /
 # so it cannot shadow an API route.
 _FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+class _AppFiles(StaticFiles):
+    """The page itself is always rechecked, so a phone picks up a new Nova on
+    its next open; the hashed files under assets/ never change and are kept."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        immutable = path.replace("\\", "/").lstrip("/").startswith("assets/")
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable" if immutable else "no-cache"
+        return response
+
+
 if _FRONTEND_DIST.is_dir():
-    app.mount("/app", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="app")
+    app.mount("/app", _AppFiles(directory=str(_FRONTEND_DIST), html=True), name="app")
 
 
 # --- Instagram DMs ----------------------------------------------------------

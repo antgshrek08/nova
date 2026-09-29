@@ -359,6 +359,7 @@
 .p-selbar.on { box-shadow: 0 0 0 1.5px var(--tx); color: var(--tx); }
 .p-selbar .sp { flex: 1; }
 .p-selbar .n { white-space: nowrap; }
+@media (max-width: 640px) { .p-selbar { flex-wrap: wrap; row-gap: 6px; } .p-selbar .n { white-space: normal; } }
 .p-sm.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--ln)); }
 .p-sm.danger:not(:disabled):hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .p-sm .i { width: 14px; height: 14px; vertical-align: -2px; margin-right: 5px; }
@@ -854,3 +855,28 @@
 
 .p-studio-empty { overflow: auto; place-content: start center; padding: 28px 20px; }
 @media (max-width: 640px) { .p-ph { position: relative; padding-right: 48px; } .p-ph > .p-guidebtn { position: absolute; top: 12px; right: 10px; } }
+
+/* Press and hold opens Nova's own menu on touch screens, so the phone's
+   copy/look-up callout stays out of the way on list rows and buttons. */
+@media (pointer: coarse) {
+  .paper button, .paper [role="option"], .paper [role="row"], .paper .p-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+}
+
+/* Settings on a phone: full screen; the section list becomes one row of
+   chips that scrolls sideways under the title and search, and the chosen
+   section takes the rest of the screen. */
+@media (max-width: 640px) {
+  .p-setscrim { padding: 0; }
+  .p-setmodal { width: 100%; height: 100%; border-radius: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .p-setmodal .p-snav { display: block; max-height: none; overflow-x: auto; overflow-y: hidden; white-space: nowrap; border-right: 0; border-bottom: 1px solid var(--ln); padding: 14px 12px 10px; scrollbar-width: none; }
+  .p-setmodal .p-snav::-webkit-scrollbar { display: none; }
+  .p-setmodal .p-snav h3, .p-setmodal .p-snav .p-pill { position: sticky; left: 0; width: calc(100vw - 24px); box-sizing: border-box; }
+  .p-setmodal .p-snav h3 { display: block; margin: 0 0 10px; padding: 0 44px 0 4px; font-size: 22px; }
+  .p-setmodal .p-snav .p-pill { display: flex; margin: 0 0 10px; }
+  .p-setmodal .p-sgrp { display: inline-flex; flex-wrap: nowrap; gap: 4px; margin: 0 4px 0 0; vertical-align: top; }
+  .p-setmodal .p-sgrp .gl { display: none; }
+  .p-setmodal .p-snav .p-item { width: auto; flex: none; white-space: nowrap; border: 1px solid var(--ln); border-radius: 999px; padding: 6px 12px; }
+  .p-setmodal .p-spanel { padding: 18px 16px 40px; }
+  .p-setmodal .p-row { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .p-setmodal .p-row .ctl, .p-setmodal .p-row .ctl select, .p-setmodal .p-row .ctl .p-input { max-width: none; }
+}

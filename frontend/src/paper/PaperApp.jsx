@@ -426,7 +426,7 @@ function Shell({ prefs, models }) {
         </main>
       </div>
       <nav className="p-tabbar" aria-label="Nova">
-        {[["chat", "Chat", "chat"], ["academics", "School", "cap"], ["agents", "Agents", "nodes"], ["memory", "Memory", "brain"]].map(([k, l, i]) => (
+        {[["chat", "Chat", "chat"], ["academics", "Academics", "cap"], ["agents", "Agents", "nodes"], ["memory", "Memory", "brain"]].map(([k, l, i]) => (
           <button key={k} aria-current={view === k && !drawer ? "page" : undefined} onClick={() => go(k)}><Icon name={i} /><span>{l}</span></button>
         ))}
         <button aria-expanded={drawer} onClick={() => setDrawer((d) => !d)}><Icon name="side" /><span>Menu</span></button>

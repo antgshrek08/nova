@@ -3,7 +3,7 @@
 // "How this works" button. What each screen says lives in GUIDES below.
 import { useEffect, useState } from "react";
 import Icon from "./icons.jsx";
-import { keys } from "./keys.js";
+import { IS_TOUCH, keys, tap } from "./keys.js";
 
 export const GUIDES = {
   chat: {
@@ -21,7 +21,7 @@ export const GUIDES = {
     points: [
       ["cap", "Everything due from Canvas and your other homework sites, grouped by day. Connect them in Settings, Canvas and Homework platforms."],
       ["cal", "Calendar shows your classes and events next to due dates, finds free time, and plans study sessions."],
-      ["bolt", "Right-click an assignment to ask Nova to do it or explain it. Autopilot shows homework Nova is working through."],
+      ["bolt", tap("Right-click an assignment to ask Nova to do it or explain it. Autopilot shows homework Nova is working through.")],
       ["refresh", "Sync pulls the newest assignments now; Nova also syncs every night."],
     ],
   },
@@ -46,7 +46,7 @@ export const GUIDES = {
     title: "What Nova knows about you",
     points: [
       ["brain", "Nova learns facts and preferences from your chats and uses them every time you talk."],
-      ["edit", "Wrong? Double-click to fix it. Not wanted? Select it and press Forget. You can undo."],
+      ["edit", IS_TOUCH ? "Wrong? Tap Edit to fix it. Not wanted? Tap Forget. You can undo." : "Wrong? Double-click to fix it. Not wanted? Select it and press Forget. You can undo."],
       ["file", "Connect your Obsidian notes in Settings, Notes, and Nova reads those too. Everything stays on this computer."],
     ],
   },

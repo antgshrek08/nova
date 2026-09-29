@@ -233,11 +233,16 @@ export function SettingsView({ prefs, section = "Appearance", onSection, onModel
     return [...map.entries()];
   }, [shown]);
 
+  // On a phone the sections are one sideways row: keep the chosen one in view.
+  const navRef = useRef(null);
+  useEffect(() => {
+    navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView?.({ inline: "center", block: "nearest" });
+  }, [current]);
   return (
     <div className="p-scrim p-setscrim" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
     <section className="p-settings p-setmodal" role="dialog" aria-modal="true" aria-label="Settings" ref={boxRef} onKeyDown={onKeyDown}>
       <button className="p-setclose" onClick={onClose} aria-label="Close settings" title="Close (Esc)"><Icon name="x" /></button>
-      <nav className="p-snav" aria-label="Settings sections">
+      <nav className="p-snav" aria-label="Settings sections" ref={navRef}>
         <h3>Settings</h3>
         <label className="p-pill"><Icon name="search" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a setting" aria-label="Find a setting"
           onKeyDown={(e) => { if (e.key === "Enter" && shown[0]) onSection(shown[0][0]); if (e.key === "Escape") setQuery(""); }} /></label>

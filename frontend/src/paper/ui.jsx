@@ -173,6 +173,47 @@ export function UiProvider({ children, askNova, layerClass = "", layerStyle }) {
   const askNovaRef = useRef(askNova);
   askNovaRef.current = askNova;
 
+  // Press and hold opens the right-click menu on touch screens. Android fires
+  // contextmenu itself on a long press (then this timer is cancelled); iOS
+  // never does, so this is the only way there.
+  useEffect(() => {
+    let timer = null;
+    let start = null;
+    let fired = false;
+    const cancel = () => { clearTimeout(timer); timer = null; };
+    const down = (e) => {
+      if (e.touches.length !== 1) return cancel();
+      const t = e.touches[0];
+      start = { x: t.clientX, y: t.clientY, target: e.target };
+      fired = false;
+      cancel();
+      timer = setTimeout(() => {
+        timer = null;
+        fired = true;
+        start.target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: start.x, clientY: start.y, button: 2 }));
+      }, 500);
+    };
+    const move = (e) => {
+      const t = e.touches[0];
+      if (start && t && Math.hypot(t.clientX - start.x, t.clientY - start.y) > 10) cancel();
+    };
+    const up = (e) => { cancel(); if (fired) { e.preventDefault(); fired = false; } };
+    const native = () => cancel();
+    document.addEventListener("touchstart", down, { passive: true });
+    document.addEventListener("touchmove", move, { passive: true });
+    document.addEventListener("touchend", up);
+    document.addEventListener("touchcancel", cancel);
+    document.addEventListener("contextmenu", native, true);
+    return () => {
+      cancel();
+      document.removeEventListener("touchstart", down);
+      document.removeEventListener("touchmove", move);
+      document.removeEventListener("touchend", up);
+      document.removeEventListener("touchcancel", cancel);
+      document.removeEventListener("contextmenu", native, true);
+    };
+  }, []);
+
   const closeMenu = useCallback((restore) => {
     setMenu(null);
     if (restore) returnFocus.current?.focus?.();
