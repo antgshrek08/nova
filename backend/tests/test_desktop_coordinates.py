@@ -52,6 +52,7 @@ async def _real_pointer_style():
     return dict(REAL_POINTER)
 
 
+@unittest.skipIf(desktop.pyautogui is None, "mouse control is Windows-only (pyautogui)")
 class ClickTranslation(unittest.TestCase):
     def test_click_moves_the_mouse_to_the_translated_point(self):
         # Pinned to the "real" pointer: with Nova's own pointer (the default)

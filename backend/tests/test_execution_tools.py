@@ -24,7 +24,7 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
                 await execution_tools.execute('read_file', {'path': '../outside.txt'})
 
     async def test_command_exit_code_and_output(self):
-        result = await execution_tools.execute('run_command', {'command': "Write-Output 'NOVA_COMMAND_OK'; exit 3"})
+        result = await execution_tools.execute('run_command', {'command': "echo NOVA_COMMAND_OK; exit 3"})
         self.assertEqual(result['exit_code'], 3)
         self.assertIn('NOVA_COMMAND_OK', result['output'])
 

@@ -90,4 +90,4 @@ class ShipExportTests(unittest.TestCase):
             self.assertTrue(result['ok'])
             self.assertFalse(result['deployed'])
             self.assertTrue(Path(result['archive_path']).is_file())
-            self.assertTrue(Path(result['archive_path']).is_relative_to(Path(tmp) / 'data' / 'exports'))
+            self.assertTrue(Path(result['archive_path']).resolve().is_relative_to((Path(tmp) / 'data' / 'exports').resolve()))

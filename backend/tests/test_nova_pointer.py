@@ -1,7 +1,15 @@
 """Nova's own pointer: the geometry that decides where it goes, when it
 hides, and when the user has asked it to stop. The window itself is checked
 live (see the desktop cursor section of docs/plans)."""
+import sys
+
+import pytest
+
 from app import nova_pointer as np, uia
+
+# Pressing buttons in other apps uses Windows UI Automation and win32; on macOS
+# and Linux that feature reports itself unavailable instead.
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="Windows-only feature")
 
 
 def test_glide_lands_exactly_on_the_target():
@@ -152,6 +160,7 @@ def _run_own(**over):
             p.stop()
 
 
+@windows_only
 def test_ui_automation_lands_it_without_the_real_mouse():
     result, calls = _run_own(uia={"control": 'button "Save"', "how": "pressed it"})
     assert result["how"] == "UI Automation pressed it"
@@ -159,18 +168,21 @@ def test_ui_automation_lands_it_without_the_real_mouse():
     assert calls["posted"] == 0 and calls["real_click"] == 0
 
 
+@windows_only
 def test_a_click_message_counts_only_when_the_window_changed():
     result, calls = _run_own(changed=True)
     assert "click message" in result["how"]
     assert calls["real_click"] == 0
 
 
+@windows_only
 def test_an_unverified_message_asks_to_borrow_rather_than_claiming_success():
     import pytest
     with pytest.raises(desktop.DesktopActionError, match="borrow their mouse.*Nothing was clicked"):
         _run_own(changed=False)
 
 
+@windows_only
 def test_borrowing_happens_only_with_permission_and_puts_the_mouse_back():
     result, calls = _run_own(changed=False, borrow_mouse=True)
     assert calls["real_click"] == 1
@@ -178,12 +190,14 @@ def test_borrowing_happens_only_with_permission_and_puts_the_mouse_back():
     assert "borrowed" in result["how"]
 
 
+@windows_only
 def test_never_means_never_even_with_permission():
     import pytest
     with pytest.raises(desktop.DesktopActionError, match="switched off"):
         _run_own(changed=False, borrow_mouse=True, style={"borrow": "never"})
 
 
+@windows_only
 def test_it_refuses_to_click_into_a_fullscreen_game():
     import pytest
     game = {"title": "Elden Ring", "process": "eldenring.exe", "hwnd": 1, "monitor": (0, 0, 1920, 1080)}
@@ -220,6 +234,7 @@ def test_images_differ_ignores_a_blinking_caret_but_sees_a_real_change():
     assert not desktop.images_differ(None, dialog)
 
 
+@windows_only
 def test_focus_stolen_from_a_fullscreen_app_is_handed_back():
     """Found live: pressing a UWP app's button through UI Automation activates
     it, which pulled a fullscreen window out from under the user."""
@@ -232,6 +247,7 @@ def test_focus_stolen_from_a_fullscreen_app_is_handed_back():
     assert "handed focus straight back to Elden Ring" in note
 
 
+@windows_only
 def test_nothing_to_hand_back_when_focus_never_moved():
     with mock.patch.object(desktop.win32gui, "GetForegroundWindow", return_value=1), \
          mock.patch.object(desktop, "_force_foreground") as restore:
@@ -241,6 +257,7 @@ def test_nothing_to_hand_back_when_focus_never_moved():
 
 
 
+@windows_only
 def test_it_asks_before_pressing_in_an_app_that_jumps_forward_during_a_game():
     import pytest
     game = {"hwnd": 1, "title": "Elden Ring", "process": "eldenring.exe"}
@@ -252,11 +269,13 @@ def test_it_asks_before_pressing_in_an_app_that_jumps_forward_during_a_game():
         desktop.guard_focus(2, None, allow_focus_change=False)  # nothing fullscreen: no question
 
 
+@windows_only
 def test_uwp_windows_are_known_to_jump_forward():
     with mock.patch.object(desktop.win32gui, "GetClassName", return_value="ApplicationFrameWindow"):
         assert desktop.jumps_forward(5)
 
 
+@windows_only
 def test_an_app_seen_stealing_focus_is_remembered():
     saved = {}
     with mock.patch("app.operator_store.get", side_effect=lambda k, i: saved.get(i)), \
