@@ -51,7 +51,7 @@ jobs:
         # never built: what a user's computer will do on first launch.
         shell: bash
         run: |
-          backend=$(find frontend/release -type d -path "*esources/backend" | head -1)
+          backend=$(cd "$(find frontend/release -type d -path "*esources/backend" | head -1)" && pwd)
           echo "engine at: $backend"
           py="$backend/python/bin/python3"; [ -f "$backend/python/python.exe" ] && py="$backend/python/python.exe"
           cd "$backend"
