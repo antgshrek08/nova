@@ -1,0 +1,73 @@
+name: Release
+
+# Installers for Windows, macOS and Linux, each built on its own system with
+# its own bundled Python (frontend/build/prepare_python.py). Push a tag like
+# v0.2.0 to publish a release; run it by hand to just build and download them.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  installers:
+    name: Installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: --win
+          - os: macos-latest
+            target: --mac
+          - os: ubuntu-latest
+            target: --linux
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Nova's own Python
+        run: uv run --no-project --python 3.12 python frontend/build/prepare_python.py
+      - name: Build
+        working-directory: frontend
+        shell: bash
+        env:
+          # Unsigned until a signing certificate is set up; see README.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          npx electron-builder ${{ matrix.target }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nova-${{ runner.os }}
+          path: |
+            frontend/release/*.exe
+            frontend/release/*.dmg
+            frontend/release/*.zip
+            frontend/release/*.AppImage
+            frontend/release/*.deb
+            frontend/release/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: installers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

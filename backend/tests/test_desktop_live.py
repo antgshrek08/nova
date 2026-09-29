@@ -136,9 +136,29 @@ def test_macos_windows_screen_and_permissions():
         image = desktop_os.capture(windows[0]["hwnd"])
         print("window image:", image and image.size)
         if desktop_os.permissions()["accessibility"]:
-            controls = asyncio.run(uia.controls(windows[0]["hwnd"]))
+            wid = windows[0]["hwnd"]
+            controls = asyncio.run(uia.controls(wid))
             print(uia.describe(controls))
             assert controls
+            # Fill the document through accessibility, with characters no key has.
+            doc = next(c for c in controls if c["type"] == "edit" and "type" in c["can"])
+            asyncio.run(uia.act(wid, ref=doc["ref"], action="type", text="Zoë ✓", replace=True))
+            value = lambda: next(c.get("value") for c in asyncio.run(uia.controls(wid)) if c["ref"] == doc["ref"])
+            assert value() == "Zoë ✓"
+            with pytest.raises(uia.UiaError):
+                asyncio.run(uia.act(wid, ref=doc["ref"], action="type", text="x"))
+            # Press a toggle by name.
+            before = next(c for c in asyncio.run(uia.controls(wid)) if c["name"] == "bold").get("toggled")
+            asyncio.run(uia.act(wid, name="bold", action="toggle"))
+            after = next(c for c in asyncio.run(uia.controls(wid)) if c["name"] == "bold").get("toggled")
+            print("bold:", before, "->", after)
+            # Real keystrokes, any character, into the focused document.
+            assert desktop_os.activate(wid)
+            time.sleep(0.8)
+            desktop_os.type_unicode(" Ana ñ 🙂", lambda: None)
+            typed = _wait_for(lambda: (value() or "").endswith("Ana ñ 🙂") and value(), seconds=5)
+            print("document:", value())
+            assert typed, value()
         else:
             with pytest.raises(uia.UiaError, match="Accessibility"):
                 asyncio.run(uia.controls(windows[0]["hwnd"]))
