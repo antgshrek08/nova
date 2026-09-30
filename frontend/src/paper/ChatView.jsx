@@ -57,7 +57,7 @@ function Reply({ m, onMenu, onCopy, onSpeak, speaking }) {
   );
 }
 
-export default function ChatView({ conversationId, onConversation, title, palette, dark, expanded, onToggleExpand, onNewChat, voiceId }) {
+export default function ChatView({ conversationId, onConversation, title, palette, dark, expanded, onToggleExpand, onNewChat, voiceId, muted, onToggleMute, remoteName }) {
   const ui = useUi();
   const chat = useChat(conversationId);
   const [text, setText] = useState("");
@@ -227,8 +227,15 @@ export default function ChatView({ conversationId, onConversation, title, palett
       <div className="p-cbar">
         <span className="ttl">{title || "New conversation"}</span>
         {last?.label ? <span className="model">{last.label}</span> : null}
+        {remoteName && <span className="p-remotebadge" title={`This chat runs on ${remoteName}`}><i />Remote · {remoteName}</span>}
         <span className="sp" />
         <GuideButton id="chat" />
+        {onToggleMute && (
+          <button className={`p-ib${muted ? " on" : ""}`} data-tour="mute" onClick={onToggleMute} aria-pressed={Boolean(muted)}
+            aria-label={muted ? "Let Nova speak" : "Mute Nova"} title={muted ? "Nova is muted. Click to let it speak" : "Mute Nova (it keeps writing)"}>
+            <Icon name={muted ? "muted" : "speaker"} />
+          </button>
+        )}
         <button className="p-ib" onClick={onToggleExpand} aria-label={expanded ? "Return to normal view" : "Expand chat"} title={expanded ? "Return (Esc)" : "Expand chat"}>
           <Icon name={expanded ? "shrink" : "grow"} />
         </button>

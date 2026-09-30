@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 import wave
 
-from .speech_sanitizer import clean_for_speech
+from .speech_sanitizer import clean_for_speech, speech_pace
 
 logger = logging.getLogger(__name__)
 
@@ -100,13 +100,23 @@ def _synthesize_piper(text: str, overrides: dict | None = None) -> bytes:
         return b""
 
 
-async def _synthesize_edge(text: str, voice: str | None = None) -> bytes:
+def _slower(rate: str, pace: float) -> str:
+    """An Edge rate like "+0%" slowed by `pace` (0.85 = 15% slower)."""
+    try:
+        base = int(str(rate).strip().rstrip("%"))
+    except ValueError:
+        base = 0
+    value = base + round((pace - 1.0) * 100)
+    return f"{value:+d}%"
+
+
+async def _synthesize_edge(text: str, voice: str | None = None, pace: float = 1.0) -> bytes:
     """Synthesizes high-fidelity speech using Edge Neural."""
     import edge_tts
 
     selected_voice = neural_voice(voice) or _config.get("voice", "en-US-JennyNeural")
 
-    rate = _config.get("rate", "+0%")
+    rate = _slower(_config.get("rate", "+0%"), pace)
     pitch = _config.get("pitch", "+0Hz")
     volume = _config.get("volume", "+0%")
 
@@ -137,6 +147,7 @@ async def synthesize(text: str, voice: str | None = None) -> bytes:
     """Main speech entrypoint. Sanitizes text, then speaks it in the chosen
     online voice, or in the offline Ryan voice when none was chosen (or the
     online service can't be reached)."""
+    pace = speech_pace(text)  # math is read a little slower, so each term is clear
     cleaned = clean_for_speech(text)
     if not cleaned or not cleaned.strip():
         return b""
@@ -146,7 +157,7 @@ async def synthesize(text: str, voice: str | None = None) -> bytes:
 
     if neural_voice(voice):
         try:
-            audio = await _synthesize_edge(cleaned, voice=voice)
+            audio = await _synthesize_edge(cleaned, voice=voice, pace=pace)
             if audio and len(audio) > 100:
                 return audio
         except Exception as exc:
@@ -154,4 +165,5 @@ async def synthesize(text: str, voice: str | None = None) -> bytes:
 
     # 2. Seamless offline fallback to Piper ONNX
     async with _lock:
-        return await asyncio.to_thread(_synthesize_piper, cleaned)
+        overrides = {"length_scale": _config.get("length_scale", 0.75) / pace} if pace != 1.0 else None
+        return await asyncio.to_thread(_synthesize_piper, cleaned, overrides)

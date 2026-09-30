@@ -88,66 +88,111 @@ def clean_for_speech(text: str) -> str:
     return cleaned
 
 
+# ---------------------------------------------------------------- math aloud
+#
+# Math is where speech trips: "sec²x", "d/dx" and "f′g − fg′" read as a blur
+# of letters. Each formula becomes the words a teacher would say, with a
+# short pause on either side, and a reply full of math is spoken a little
+# slower (speech_pace).
+
+TRIG = {
+    "arcsin": "inverse sine", "arccos": "inverse cosine", "arctan": "inverse tangent",
+    "sinh": "hyperbolic sine", "cosh": "hyperbolic cosine", "tanh": "hyperbolic tangent",
+    "sin": "sine", "cos": "cosine", "tan": "tangent", "sec": "secant", "csc": "cosecant", "cot": "cotangent",
+}
+SUPERSCRIPTS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ⁿˣʸ⁽⁾", "0123456789+-nxy()")
+SUPER_RUN = re.compile(r"([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ⁿˣʸ⁽⁾]+)")
+MATH_SPAN = re.compile(r"\$\$(.+?)\$\$|\$([^$\n]+?)\$|\\\((.+?)\\\)|\\\[(.+?)\\\]", re.DOTALL)
+GREEK = ["alpha", "beta", "gamma", "delta", "epsilon", "theta", "lambda", "mu", "pi", "sigma", "phi", "omega"]
+SYMBOLS = [
+    ("±", " plus or minus "), ("∓", " minus or plus "), ("·", " times "), ("×", " times "), ("÷", " divided by "),
+    ("−", " minus "), ("≠", " is not equal to "), ("≤", " is at most "), ("≥", " is at least "), ("≈", " is about "),
+    ("∞", " infinity "), ("π", " pi "), ("θ", " theta "), ("→", " approaches "), ("√", " the square root of "),
+    ("∫", " the integral of "), ("Δ", " change in "), ("′′", " double prime "), ("″", " double prime "), ("′", " prime "),
+]
+
+
+def _power(exp: str) -> str:
+    exp = exp.strip().strip("()")
+    if exp == "2":
+        return " squared"
+    if exp == "3":
+        return " cubed"
+    if exp in ("-1", "−1"):
+        return " to the negative one"
+    exp = re.sub(r"\s*-\s*", " minus ", exp)
+    exp = re.sub(r"\s*\+\s*", " plus ", exp).strip()
+    return f" to the {exp}"
+
+
+def _speak_math(text: str) -> str:
+    t = text
+    # LaTeX structure first.
+    t = re.sub(r"\\left|\\right|\\,|\\;|\\!|\\quad|\\displaystyle", " ", t)
+    t = re.sub(r"\\frac\{d\}\{d([a-zA-Z])\}", r" the derivative with respect to \1 of ", t)
+    t = re.sub(r"\\frac\{d\^2\}\{d([a-zA-Z])\^2\}", r" the second derivative with respect to \1 of ", t)
+    for _ in range(3):  # nested fractions, innermost first
+        t = re.sub(r"\\[dt]?frac\{([^{}]+)\}\{([^{}]+)\}", r" \1, over \2, ", t)
+    t = re.sub(r"\\sqrt\[(\d+)\]\{([^{}]+)\}", r" the \1th root of \2 ", t)
+    t = re.sub(r"\\sqrt\{([^{}]+)\}", r" the square root of \1 ", t)
+    t = re.sub(r"\\lim_\{([^{}]+)\}", r" the limit as \1 of ", t)
+    t = re.sub(r"\\int_\{?([^{}\s^]+)\}?\^\{?([^{}\s]+)\}?", r" the integral from \1 to \2 of ", t)
+    t = re.sub(r"\\sum_\{([^{}]+)\}\^\{?([^{}\s]+)\}?", r" the sum from \1 to \2 of ", t)
+    t = re.sub(r"\\(ln|log)\b", lambda m: " the natural log of " if m.group(1) == "ln" else " log of ", t)
+    t = re.sub(r"\\(" + "|".join(TRIG) + r")\b", lambda m: m.group(1), t)
+    for name in GREEK:
+        t = re.sub(r"\\" + name + r"\b", f" {name} ", t)
+    for tex, word in [(r"\pm", "±"), (r"\cdot", "·"), (r"\times", "×"), (r"\div", "÷"), (r"\neq", "≠"),
+                      (r"\leq", "≤"), (r"\le", "≤"), (r"\geq", "≥"), (r"\ge", "≥"), (r"\approx", "≈"),
+                      (r"\infty", "∞"), (r"\to", "→"), (r"\rightarrow", "→"), (r"\prime", "′")]:
+        t = t.replace(tex, word)
+    # Plain-text calculus: d/dx, dy/dx.
+    t = re.sub(r"\bd\s*/\s*d([a-zA-Z])\b", r" the derivative with respect to \1 of ", t)
+    t = re.sub(r"\bd([a-zA-Z])\s*/\s*d([a-zA-Z])\b", r" d \1 d \2 ", t)
+    # Unicode superscripts: x² -> x^2, xⁿ⁻¹ -> x^(n-1).
+    t = SUPER_RUN.sub(lambda m: "^(" + m.group(1).translate(SUPERSCRIPTS) + ")", t)
+    # Trig with a power: sec^2 x -> secant squared of x.
+    t = re.sub(r"\b(" + "|".join(TRIG) + r")\s*\^\s*\{?\(?([^\s{}()]+?)\)?\}?(?=[\s(a-zA-Zθ])",
+               lambda m: f" {TRIG[m.group(1)]}{_power(m.group(2))} of ", t)
+    # Trig applied to something: sin x, cos(2x) -- but not "30 sec" (seconds).
+    t = re.sub(r"\b(" + "|".join(TRIG) + r")\b(?=\s*(\(|[a-zA-Zθ]\b|\d*[a-zA-Zθ]\b))", lambda m: f" {TRIG[m.group(1)]} of ", t)
+    # Powers.
+    t = re.sub(r"\^\{([^{}]+)\}", lambda m: _power(m.group(1)), t)
+    t = re.sub(r"\^\(([^()]+)\)", lambda m: _power(m.group(1)), t)
+    t = re.sub(r"\^(-?\w+)", lambda m: _power(m.group(1)), t)
+    # Primes: f'(x) / f′(x) -> f prime of x.
+    t = re.sub(r"([a-zA-Z])('{2}|″|′′)\s*\(([^()]+)\)", r"\1 double prime of \3", t)
+    t = re.sub(r"([a-zA-Z])('|′)\s*\(([^()]+)\)", r"\1 prime of \3", t)
+    t = re.sub(r"([a-zA-Z])'", r"\1 prime ", t)
+    for sym, word in SYMBOLS:
+        t = t.replace(sym, word)
+    t = re.sub(r"prime\s+\(", "prime of (", t)
+    # Operators said as words, so the pace holds.
+    t = re.sub(r"(?<=\s)=(?=\s)|(?<=[\w)])\s*=\s*(?=[\w(])", " equals ", t)
+    t = re.sub(r"(?<=[\w)])\s*\+\s*(?=[\w(])", " plus ", t)
+    t = re.sub(r"(?<=[\w)])\s+-\s+(?=[\w(])", " minus ", t)
+    t = re.sub(r"(?<=[\w)])\s*/\s*(?=[\w(])", " over ", t)
+    t = re.sub(r"\\[a-zA-Z]+", " ", t)
+    t = t.replace("{", " ").replace("}", " ")
+    t = re.sub(r"\bof(\s+of)+\b", "of", t)  # "d/dx of x" -> "... of x", not "of of"
+    return re.sub(r"\s{2,}", " ", t)
+
+
 def _latex_to_spoken(text: str) -> str:
-    """Translates LaTeX math notation into natural spoken language."""
-    # Common mathematical operators and symbols
-    replacements = [
-        (r"\pm", " plus or minus "),
-        (r"\times", " times "),
-        (r"\cdot", " times "),
-        (r"\div", " divided by "),
-        (r"\neq", " is not equal to "),
-        (r"\leq", " is less than or equal to "),
-        (r"\geq", " is greater than or equal to "),
-        (r"\approx", " is approximately "),
-        (r"\infty", " infinity "),
-        (r"\pi", " pi "),
-        (r"\theta", " theta "),
-        (r"\alpha", " alpha "),
-        (r"\beta", " beta "),
-        (r"\Delta", " delta "),
-        (r"\delta", " delta "),
-        (r"\rightarrow", " approaches "),
-        (r"\to", " approaches "),
-    ]
-    for pattern, repl in replacements:
-        text = text.replace(pattern, repl)
+    """Math into spoken words: LaTeX spans ($...$, $$...$$, \\(...\\),
+    \\[...\\]) first, each with a pause either side, then math written in
+    plain text or Unicode (sec²x, d/dx, f′(x))."""
+    text = MATH_SPAN.sub(lambda m: ", " + _speak_math(next(g for g in m.groups() if g is not None)).strip() + ", ", text)
+    return _speak_math(text)
 
-    # Fractions: \frac{a}{b} -> a over b
-    text = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"\1 over \2", text)
 
-    # Square roots: \sqrt{x} -> square root of x
-    text = re.sub(r"\\sqrt\{([^}]+)\}", r"square root of \1", text)
-    text = re.sub(r"\\sqrt\[(\d+)\]\{([^}]+)\}", r"\1th root of \2", text)
-
-    # Limits: \lim_{x \to a} -> limit as x approaches a
-    text = re.sub(r"\\lim_\{([^}]+)\}", r"limit as \1", text)
-
-    # Integrals: \int_{a}^{b} -> integral from a to b
-    text = re.sub(r"\\int_\{([^}]+)\}\^\{([^}]+)\}", r"integral from \1 to \2 of", text)
-    text = re.sub(r"\\int", "integral of", text)
-
-    # Derivatives: f'(x) -> f prime of x, f''(x) -> f double prime of x
-    text = re.sub(r"(\w)''\((\w+)\)", r"\1 double prime of \2", text)
-    text = re.sub(r"(\w)'\((\w+)\)", r"\1 prime of \2", text)
-    text = re.sub(r"d([a-zA-Z])/d([a-zA-Z])", r"d \1 d \2", text)
-
-    # Exponents: x^2 -> x squared, x^3 -> x cubed, x^{n} -> x to the n
-    text = re.sub(r"(\w)\^2(?!\d)", r"\1 squared", text)
-    text = re.sub(r"(\w)\^3(?!\d)", r"\1 cubed", text)
-    text = re.sub(r"(\w)\^\{([^}]+)\}", r"\1 to the \2", text)
-    text = re.sub(r"(\w)\^(\w+)", r"\1 to the \2", text)
-
-    # Functions: \ln(x) -> natural log of x, \sin(x) -> sine of x
-    text = re.sub(r"\\ln\b", "natural log of", text)
-    text = re.sub(r"\\log\b", "log of", text)
-    text = re.sub(r"\\sin\b", "sine of", text)
-    text = re.sub(r"\\cos\b", "cosine of", text)
-    text = re.sub(r"\\tan\b", "tangent of", text)
-
-    # Clean up leftover backslashes and dollar signs from math mode
-    text = re.sub(r"\$+", "", text)
-    text = re.sub(r"\\[a-zA-Z]+", "", text)
-    text = text.replace("{", "(").replace("}", ")")
-
-    return text
+def speech_pace(text: str) -> float:
+    """How much slower than normal to speak a reply (1.0 = normal): math
+    goes a little slower so each term is clear."""
+    if not text:
+        return 1.0
+    marks = len(re.findall(r"\$|\\frac|\\sqrt|\^|[²³ⁿ′±√∫]|\b(sin|cos|tan|sec|csc|cot|ln|d/d[a-z])\b", text))
+    if marks < 3:
+        return 1.0
+    density = marks / max(1, len(text.split()))
+    return 0.85 if density > 0.12 else 0.92 if density > 0.04 else 1.0

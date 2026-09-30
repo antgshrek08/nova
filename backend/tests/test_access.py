@@ -186,3 +186,54 @@ class TailscaleHttps(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Devices(unittest.TestCase):
+    """Each remote device has its own key; removing one leaves the others working."""
+
+    def setUp(self):
+        self.app, self.patcher = _app()
+        self.addCleanup(self.patcher.stop)
+        rows = {}
+
+        class Conn:
+            def execute(self, sql, params):
+                return mock.Mock(rowcount=1 if rows.pop((params[0], params[1]), None) else 0)
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def transaction():
+            yield Conn()
+
+        from app import operator_store
+        for name, fn in {"put": lambda kind, key, value, connection=None: rows.__setitem__((kind, key), value),
+                         "listing": lambda kind: [v for (k, _), v in rows.items() if k == kind],
+                         "transaction": transaction}.items():
+            p = mock.patch.object(operator_store, name, fn)
+            p.start()
+            self.addCleanup(p.stop)
+        access._device_cache = None
+        self.addCleanup(lambda: setattr(access, "_device_cache", None))
+
+    def get(self, key):
+        with TestClient(self.app, client=("100.64.0.9", 50000)) as client:
+            return client.get("/private", headers={"Authorization": f"Bearer {key}"} if key else {}).status_code
+
+    def test_a_device_key_works_until_that_device_is_removed(self):
+        phone, phone_key = access.add_device("Phone")
+        tablet, tablet_key = access.add_device("Tablet")
+        self.assertEqual(self.get(phone_key), 200)
+        self.assertEqual(self.get(tablet_key), 200)
+        self.assertEqual(self.get("secret-token"), 200)  # the original link still works
+        self.assertEqual(self.get("made-up"), 401)
+        self.assertTrue(access.remove_device(phone["id"]))
+        self.assertEqual(self.get(phone_key), 401)
+        self.assertEqual(self.get(tablet_key), 200)
+
+    def test_keys_are_never_stored_or_listed(self):
+        _device, key = access.add_device("Phone")
+        listed = access.devices()
+        self.assertEqual([d["name"] for d in listed], ["Phone"])
+        self.assertNotIn(key, str(listed))
+        self.assertNotIn(key, str(access._devices_by_hash()))

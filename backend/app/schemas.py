@@ -55,6 +55,7 @@ class AppSettingsUpdateRequest(BaseModel):
 
     auto_route: bool | None = None
     prefer_local: bool | None = None
+    fast_simple_replies: bool | None = None
     enter_sends: bool | None = None
     launch_at_login: bool | None = None
     miniplayer_at_login: bool | None = None

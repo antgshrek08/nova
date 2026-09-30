@@ -3,6 +3,7 @@
 // provider (UiProvider) renders the overlays; screens reach them through
 // useUi(). Everything here works from the keyboard as well as the mouse.
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Icon from "./icons.jsx";
 import { keys } from "./keys.js";
 
@@ -406,4 +407,11 @@ export function SelectionBar({ sel, total, noun = "item", nouns, children }) {
       {children}
     </div>
   );
+}
+
+/** Draw a popup in the shared overlay layer, above every page -- a fixed
+ * element inside a page is otherwise positioned (and stacked) within it. */
+export function Overlay({ children }) {
+  const layer = typeof document !== "undefined" ? document.querySelector(".p-layer") : null;
+  return layer ? createPortal(children, layer) : children;
 }

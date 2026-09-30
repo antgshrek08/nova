@@ -213,7 +213,7 @@ function ConnectStep({ models, prefs, onOpen }) {
     ["Your calendars", "cal", "Apple, Google, Outlook or any calendar link", status.calendar, "Calendar",
       "Nova sees your classes and plans, finds free time, and puts study sessions before due dates.",
       "Apple: an app-specific password from appleid.apple.com. Google or Outlook: the calendar's private link from its settings. Settings shows where each one is.", "About 2 minutes"],
-    ["Your phone", "phone", "Nova's free phone app and notifications", status.phone, "Phone access",
+    ["Your phone", "phone", "Nova's free phone app and notifications", status.phone, "Remote",
       "Talk to Nova from your phone and get notifications about due dates and finished work. It's free and needs no app store.",
       "The free Tailscale app on this computer and your phone, signed in to the same account. Settings walks you through it and shows a code to scan.", "About 5 minutes"],
   ];

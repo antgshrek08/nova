@@ -15,7 +15,7 @@ function renderMath(tex, display, key) {
   }
 }
 
-const INLINE = /(\$\$[^$]+\$\$|\$[^$\n]+\$|\\\([^)]*\\\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|_[^_\n]+_|\[[^\]]+\]\((?:https?:\/\/|mailto:)[^)\s]+\))/g;
+const INLINE = /(\$\$[^$]+\$\$|\$[^$\n]+\$|\\\(.+?\\\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|_[^_\n]+_|\[[^\]]+\]\((?:https?:\/\/|mailto:)[^)\s]+\))/g;
 
 function inline(text, keyBase = "") {
   const out = [];
@@ -40,6 +40,22 @@ function inline(text, keyBase = "") {
   return out;
 }
 
+/** A table row's cells; a | inside $math$ (|x|) or escaped (\\|) isn't a divider. */
+function splitRow(row) {
+  const cells = [];
+  let cell = "";
+  let math = false;
+  for (let i = 0; i < row.length; i += 1) {
+    const ch = row[i];
+    if (ch === "\\" && row[i + 1] === "|") { cell += "|"; i += 1; continue; }
+    if (ch === "$") math = !math;
+    if (ch === "|" && !math) { cells.push(cell.trim()); cell = ""; continue; }
+    cell += ch;
+  }
+  cells.push(cell.trim());
+  return cells;
+}
+
 function blocks(src) {
   const lines = src.replace(/\r\n/g, "\n").split("\n");
   const out = [];
@@ -55,16 +71,32 @@ function blocks(src) {
       out.push({ type: "code", text: body.join("\n") });
       continue;
     }
-    if (/^\$\$\s*$/.test(line)) {
-      const body = [];
+    // Display math: $$ ... $$ or \[ ... \], on one line or across several.
+    const oneLine = line.match(/^\s*(?:\$\$(.+)\$\$|\\\[(.+)\\\])\s*$/);
+    if (oneLine) { out.push({ type: "math", text: oneLine[1] ?? oneLine[2] }); i += 1; continue; }
+    const opens = line.match(/^\s*(\$\$|\\\[)(.*)$/);
+    if (opens) {
+      const close = opens[1] === "$$" ? "$$" : "\\]";
+      const body = [opens[2]];
       i += 1;
-      while (i < lines.length && !/^\$\$\s*$/.test(lines[i])) body.push(lines[i++]);
+      while (i < lines.length && !lines[i].includes(close)) body.push(lines[i++]);
+      if (i < lines.length) body.push(lines[i].slice(0, lines[i].indexOf(close)));
       i += 1;
-      out.push({ type: "math", text: body.join("\n") });
+      out.push({ type: "math", text: body.join("\n").trim() });
       continue;
     }
-    const heading = line.match(/^(#{1,3})\s+(.*)$/);
-    if (heading) { out.push({ type: `h${heading[1].length}`, text: heading[2] }); i += 1; continue; }
+    // Tables: a header row, a |---| row, then rows.
+    if (/^\s*\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].includes("-")) {
+      const cells = (l) => splitRow(l.trim().replace(/^\||\|$/g, ""));
+      const head = cells(line);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) rows.push(cells(lines[i++]));
+      out.push({ type: "table", head, rows });
+      continue;
+    }
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) { out.push({ type: `h${Math.min(heading[1].length, 4)}`, text: heading[2] }); i += 1; continue; }
     if (/^\s*[-*]\s+/.test(line) || /^\s*\d+[.)]\s+/.test(line)) {
       const ordered = /^\s*\d+[.)]\s+/.test(line);
       const items = [];
@@ -82,8 +114,9 @@ function blocks(src) {
       continue;
     }
     if (!line.trim()) { i += 1; continue; }
-    const para = [];
-    while (i < lines.length && lines[i].trim() && !/^(#{1,3}\s|```|>|\s*[-*]\s|\s*\d+[.)]\s|\$\$)/.test(lines[i])) para.push(lines[i++]);
+    const para = [line]; // always take this line, so the reader never stands still
+    i += 1;
+    while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|```|>|\s*[-*]\s|\s*\d+[.)]\s|\s*\$\$|\s*\\\[|\s*\|.*\|\s*$)/.test(lines[i])) para.push(lines[i++]);
     out.push({ type: "p", text: para.join("\n") });
   }
   return out;
@@ -110,6 +143,16 @@ function Markdown({ text }) {
           return <List key={k}>{b.items.map((item, j) => <li key={j}>{inline(item, `${k}${j}`)}</li>)}</List>;
         }
         if (b.type === "quote") return <blockquote key={k}>{inline(b.text, k)}</blockquote>;
+        if (b.type === "table") {
+          return (
+            <div key={k} className="p-mdtable">
+              <table>
+                <thead><tr>{b.head.map((c, j) => <th key={j}>{inline(c, `${k}h${j}`)}</th>)}</tr></thead>
+                <tbody>{b.rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j}>{inline(c, `${k}r${ri}c${j}`)}</td>)}</tr>)}</tbody>
+              </table>
+            </div>
+          );
+        }
         if (b.type === "p") return <p key={k}>{b.text.split("\n").map((l, j) => <Fragment key={j}>{j > 0 && <br />}{inline(l, `${k}${j}`)}</Fragment>)}</p>;
         const H = b.type;
         return <H key={k}>{inline(b.text, k)}</H>;
@@ -118,4 +161,5 @@ function Markdown({ text }) {
   );
 }
 
+export { blocks };
 export default memo(Markdown);

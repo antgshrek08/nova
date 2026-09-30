@@ -20,6 +20,7 @@ import Reactor from "./Reactor.jsx";
 import { useUi } from "./ui.jsx";
 import "./studio.css";
 import { keys } from "./keys.js";
+import { IS_REMOTE, requireLive, sessionLive } from "./remote.js";
 
 const IdeTools = lazy(() => import("../components/IdeTools.jsx"));
 const LivePreviewPanel = lazy(() => import("../components/ide/LivePreviewPanel.jsx"));
@@ -229,7 +230,16 @@ export default function StudioView({ palette, dark }) {
   const [panelOpen, setPanelOpen] = useState(() => stored("nova.studio.panelOpen", false));
   const [panelH, setPanelH] = useState(() => stored("nova.studio.panelH", 260));
   const phone = typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
-  const [chatOpen, setChatOpen] = useState(() => !phone && stored("nova.studio.chatOpen", true));
+  const [chatOpen, setChatOpenRaw] = useState(() => !phone && !IS_REMOTE && stored("nova.studio.chatOpen", true));
+  // Opening Nova's panel on a phone needs the computer's Nova to be live.
+  const setChatOpen = (next) => {
+    const value = typeof next === "function" ? next(chatOpen) : next;
+    if (value && !chatOpen && !sessionLive()) {
+      requireLive(() => {}, "Nova's help in Studio");
+      return;
+    }
+    setChatOpenRaw(value);
+  };
   const [chatW, setChatW] = useState(() => stored("nova.studio.chatW", 380));
   const [explorerOpen, setExplorerOpen] = useState(() => !phone && stored("nova.studio.explorer", true));
   const [split, setSplit] = useState(false);

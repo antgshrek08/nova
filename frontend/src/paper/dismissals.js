@@ -13,6 +13,7 @@ const LEGACY_GUIDE = /^nova\.guide\.(.+)$/;
 
 let ids = null; // Set once the engine answered
 let loading = null;
+let unreachable = false; // the engine couldn't be asked (a phone away from its computer)
 const listeners = new Set();
 
 function readLocal(id) {
@@ -42,6 +43,16 @@ function legacyIds() {
   return found;
 }
 
+function clearLegacy() {
+  try {
+    for (const [, key] of LEGACY) localStorage.removeItem(key);
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && LEGACY_GUIDE.test(key)) localStorage.removeItem(key);
+    }
+  } catch { /* private window */ }
+}
+
 function send(list) {
   if (!list.length) return Promise.resolve();
   return fetch(`${BACKEND_URL}/ui/dismissed`, {
@@ -57,17 +68,27 @@ export function loadDismissed() {
       // Dismissed earlier (old storage, or while the engine was unreachable): save them now.
       const carry = [...legacyIds(), ...pending()].filter((id) => !ids.has(id));
       carry.forEach((id) => { ids.add(id); writeLocal(id, true); });
+      clearLegacy(); // carried over once; from now on Nova's list is the only record
+      // Nova's list is the truth: a note brought back on another device
+      // shows here too, so this device's copy is replaced, not added to.
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith("nova.dismissed.") && key !== PENDING && !ids.has(key.slice("nova.dismissed.".length))) localStorage.removeItem(key);
+        }
+      } catch { /* private window */ }
       for (const id of ids) writeLocal(id, true);
       return send(carry);
-    }).catch(() => { loading = null; }).finally(notify);
+    }).then(() => { unreachable = false; }).catch(() => { loading = null; unreachable = true; }).finally(notify);
   }
   return loading;
 }
 
 /** true / false, or null while it isn't known yet (show nothing until then). */
 export function isDismissed(id) {
+  if (ids) return ids.has(id); // loaded: Nova's own list decides
   if (readLocal(id) || legacyIds().includes(id)) return true;
-  return ids ? ids.has(id) : null;
+  return unreachable ? false : null; // not known yet: show nothing rather than flash it
 }
 
 export function dismiss(id) {

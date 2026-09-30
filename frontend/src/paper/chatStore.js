@@ -7,7 +7,7 @@ import {
 import { playTtsAudio, primeAudioContext, stopTtsAudio } from "../lib/ttsPlayback.js";
 import { spokenText } from "../lib/spokenText.js";
 import { chatStatus, stopChat } from "./paperApi.js";
-import { beginThinking } from "./novaState.js";
+import { beginThinking, hushedSince } from "./novaState.js";
 
 const chats = new Map(); // id -> { messages, busy, loaded, error, controller }
 let prefill = "";
@@ -62,11 +62,13 @@ export async function refreshChat(id) {
 }
 
 async function speakReply(text) {
+  const started = Date.now();
   try {
     const settings = await getAppSettings();
     if (settings?.voice_replies !== true && settings?.voice_replies !== "1") return;
     const short = await summarizeForSpeech(text);
     const blob = await textToSpeech(spokenText(short));
+    if (hushedSince(started)) return; // tapped quiet while this was being prepared
     await playTtsAudio(blob);
   } catch (error) {
     console.warn("Voice reply unavailable", error);

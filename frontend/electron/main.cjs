@@ -450,6 +450,10 @@ ipcMain.on("release-microphone", (event, token) => {
   if (microphoneOwner?.sender === event.sender && microphoneOwner.token === token) microphoneOwner = null;
 });
 ipcMain.on("release-voice-audio", (event) => { if (voiceAudioOwner === event.sender) voiceAudioOwner = null; });
+ipcMain.on("silence-voice", () => {
+  voiceAudioOwner = null;
+  for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send("stop-voice-audio");
+});
 ipcMain.handle("claim-voice-audio", async (event) => {
   await yieldWakeMicrophone();
   if (microphoneOwner && !microphoneOwner.sender.isDestroyed()) return false;

@@ -18,6 +18,7 @@ REGISTERED = {t["function"]["name"] for t in nova_tools.TOOL_SCHEMAS}
 # Tools that are read-only on purpose. Listing them here means a new tool is
 # never silently ungated: it is either mutating, or a deliberate entry below.
 KNOWN_READ_ONLY = {
+    "agent_list",
     'coursework_read', 'coursework_status', 'coursework_list',
     "calendar_events", "calendar_list", "canvas_assignments", "homework_assignments", "calendar_agenda", "calendar_free_time", "expand_result",
     "desktop_read_screen", "desktop_screenshot", "focus_window", "get_clipboard",

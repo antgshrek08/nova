@@ -185,7 +185,7 @@ def test_offline_voice_is_listed_only_when_installed_and_nova_still_speaks():
     assert not any(v["id"] == "default" for v in voices)
     spoken = []
 
-    async def edge(text, voice=None):
+    async def edge(text, voice=None, **_pace):
         spoken.append(voice)
         return b"x" * 200
     with patch.object(fast_speech, "offline_ready", return_value=False),             patch.object(fast_speech, "_synthesize_edge", edge):

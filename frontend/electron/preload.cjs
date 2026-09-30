@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener("yield-microphone", listener);
   },
   releaseVoiceAudio: () => ipcRenderer.send("release-voice-audio"),
+  // Stop Nova talking in every window (the main app and the miniplayer).
+  silenceVoice: () => ipcRenderer.send("silence-voice"),
   releaseMicrophone: (token) => ipcRenderer.send("release-microphone", token),
   claimVoiceAudio: () => ipcRenderer.invoke("claim-voice-audio"),
   onStopVoiceAudio: (callback) => {

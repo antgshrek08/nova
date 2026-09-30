@@ -61,7 +61,7 @@ class RosterChecks(unittest.IsolatedAsyncioTestCase):
         captured=[]
         async def stream(command,*args,**kwargs):captured.append(command);yield 'ok'
         from typing import AsyncIterator
-        env={'AsyncIterator':AsyncIterator,'config':types.SimpleNamespace(CLAUDE_CLI_PATH='claude',CLAUDE_CLI_MODEL='',CODEX_CLI_PATH='codex',CODEX_CLI_MODEL=''),'_format_cli_transcript':lambda m:'prompt','_stream_cli':stream,'_record_cli_usage':AsyncMock()}
+        env={'AsyncIterator':AsyncIterator,'config':types.SimpleNamespace(CLAUDE_CLI_PATH='claude',CLAUDE_CLI_MODEL='',CODEX_CLI_PATH='codex',CODEX_CLI_MODEL=''),'_format_cli_transcript':lambda m:'prompt','_stream_cli':stream,'_claude_stream_text':(lambda chunks: chunks),'_record_cli_usage':AsyncMock(),'onyx_mcp_config':(lambda: None)}
         for name in ('stream_claude_cli','stream_codex_cli'):
             call=function('providers.py',name,env)
             self.assertEqual(''.join([c async for c in call([],read_only=True)]),'ok')

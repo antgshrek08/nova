@@ -35,11 +35,12 @@ export const GUIDES = {
     ],
   },
   agents: {
-    title: "See what Nova is doing",
+    title: "Jobs Nova does on its own",
     points: [
-      ["nodes", "Every task Nova is working on, step by step, with what each step did."],
-      ["stop", "Stop everything halts Nova at once, anywhere. Nothing else happens until you press Resume."],
-      ["team", "Jobs from Workspace show here too, so you can follow the whole team."],
+      ["plus", "New agent: say what to do and when (once, daily, weekdays, weekly or every few hours). Or ask Nova in Chat."],
+      ["bolt", "Auto picks the cheapest model that does the job well, so agents cost little or nothing."],
+      ["nodes", "Working now shows what's running. Tap an agent to start it again, pause it, edit or delete it."],
+      ["refresh", "Didn't finish lists runs that stopped part-way. Resume picks up where it left off."],
     ],
   },
   memory: {

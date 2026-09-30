@@ -49,3 +49,13 @@ export const removeHomeworkSource = (id) => json(`/homework/sources/${id}`, { me
 export const signInHomeworkSource = (id) => post(`/homework/sources/${id}/sign-in`);
 export const discoverHomework = (sourceId) => post("/homework/discover", sourceId ? { source_id: sourceId } : {});
 export const homeworkAssignments = () => json("/homework/assignments");
+
+// Agents the user sets up (backend: app/crew.py, /crew in main.py)
+export const crewOverview = (showFinished = false) => json(`/crew${showFinished ? "?show_finished=true" : ""}`);
+export const crewCreate = (agent) => post("/crew/agents", agent);
+export const crewUpdate = (id, changes) => json(`/crew/agents/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes) });
+export const crewDelete = (id) => json(`/crew/agents/${id}`, { method: "DELETE" });
+export const crewStart = (id) => post(`/crew/agents/${id}/start`);
+export const crewResume = (runId) => post(`/crew/runs/${encodeURIComponent(runId)}/resume`);
+export const crewStop = (runId) => post(`/crew/runs/${encodeURIComponent(runId)}/stop`);
+export const crewDismiss = (runId) => json(`/crew/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });

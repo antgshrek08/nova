@@ -23,7 +23,7 @@ import { useEffect, useRef } from "react";
 import { getAudioLevels } from "../lib/ttsPlayback.js";
 import { getMicLevels } from "../lib/micLevels.js";
 import { hexToRgb } from "./palettes.js";
-import { useNovaState } from "./novaState.js";
+import { stopSpeaking, useNovaState } from "./novaState.js";
 
 const TAU = Math.PI * 2;
 const BANDS = 4;
@@ -270,5 +270,14 @@ export default function Reactor({ palette, dark = false, state, reducedMotion = 
     return () => { live.delete(r); ro.disconnect(); io.disconnect(); };
   }, []);
 
-  return <canvas ref={canvasRef} className={className} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true} />;
+  // Tap the reactor while Nova is talking to make it stop (and go idle).
+  const talking = !state && liveState === "speaking";
+  return (
+    <canvas ref={canvasRef} className={`${className}${talking ? " p-hushable" : ""}`}
+      role={talking ? "button" : label ? "img" : undefined}
+      aria-label={talking ? "Stop Nova talking" : label} aria-hidden={talking || label ? undefined : true}
+      title={talking ? "Tap to stop Nova talking" : undefined} tabIndex={talking ? 0 : undefined}
+      onClick={talking ? stopSpeaking : undefined}
+      onKeyDown={talking ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); stopSpeaking(); } } : undefined} />
+  );
 }

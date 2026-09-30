@@ -1,11 +1,14 @@
-// Nova's service worker. Its only job is to receive pushes and open the app
-// when one is tapped.
+// Nova's service worker, for the phone app: notifications, and opening even
+// when the computer Nova runs on is off.
 //
-// Deliberately not a caching/offline worker. Nova's frontend is served by the
-// backend it talks to, so a cached shell that outlives its API is worse than
-// no cache at all: the app would load, look fine, and fail every request.
-// Adding offline support later means versioning that cache carefully, and
-// that is a separate piece of work from "let Nova reach the phone".
+// Only the app itself is kept (the page and its files), never your data --
+// that stays behind the access token on the computer, and the screens keep
+// their own "last time" copy (remote.js). The page is always fetched fresh
+// first, so an update to Nova reaches the phone on its next open; the saved
+// copy is used only when the computer can't be reached.
+
+const CACHE = "nova-app-v1";
+const SHELL = "/app/";
 
 self.addEventListener("install", () => {
   // Take over immediately rather than waiting for every existing tab to
@@ -15,7 +18,38 @@ self.addEventListener("install", () => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.all([
+    self.clients.claim(),
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith("nova-app-") && k !== CACHE).map((k) => caches.delete(k)))),
+  ]));
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin || !url.pathname.startsWith("/app")) return; // API calls: never cached
+  // Built files have a content hash in their name, so a saved copy is never stale.
+  if (url.pathname.startsWith("/app/assets/")) {
+    event.respondWith(caches.open(CACHE).then(async (cache) => {
+      const hit = await cache.match(request);
+      if (hit) return hit;
+      const response = await fetch(request);
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    }));
+    return;
+  }
+  // The page (and icons, manifest): fresh when the computer answers, saved copy when it doesn't.
+  if (request.mode === "navigate" || /\/app\/?(index\.html)?$/.test(url.pathname) || /\.(png|ico|webmanifest|svg)$/.test(url.pathname)) {
+    event.respondWith(fetch(request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE).then((cache) => cache.put(request.mode === "navigate" ? SHELL : request, copy));
+      }
+      return response;
+    }).catch(async () => (await caches.match(request.mode === "navigate" ? SHELL : request)) || (await caches.match(SHELL)) || Response.error()));
+  }
 });
 
 self.addEventListener("push", (event) => {

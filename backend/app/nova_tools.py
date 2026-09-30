@@ -46,7 +46,7 @@ DEFAULT_AUTONOMY = "full"
 # route through desktop_registry's real approval gate; at `readonly` they are
 # refused outright.
 MUTATING_TOOLS = {
-    "homework_find", "plan_study_time",
+    "homework_find", "plan_study_time", "agent_create", "agent_start",
     "run_command", "write_file", "edit_file", "delete_path", "move_path",
     # "close_app" used to sit here and no such tool has ever existed, so the
     # entry gated nothing while the real window-closing tool went ungated.
@@ -997,6 +997,21 @@ TOOL_SCHEMAS: list[dict] = [
           {"days": INT, "minutes": {"type": "integer", "description": "Shortest stretch worth listing (default 60)."}}),
     _tool("plan_study_time", "Put a study session in the user's Apple Calendar before an assignment is due, in free time, at their chosen hour and length. Planning the same assignment again moves it rather than duplicating it.",
           {"title": STR, "due_at": {"type": "string", "description": "ISO 8601 due date/time."}, "url": STR, "minutes": INT}, ["title", "due_at"]),
+    _tool("agent_create", "Set up an agent: a job Nova does on its own, once or on a schedule, shown on the Agents screen. "
+          "Use when the user asks for something recurring ('every morning...', 'each Friday...') or to hand off a job to run in the background. "
+          "Give it a short name and clear instructions. The model is picked automatically (the cheapest one that does the job well) unless the user names one.",
+          {"name": {"type": "string", "description": "Two to four words, like 'Morning brief'."},
+           "task": {"type": "string", "description": "Exactly what to do each time, written as instructions."},
+           "schedule": {"type": "string", "enum": ["none", "once", "daily", "weekdays", "weekly", "hourly"],
+                        "description": "none = only when started; once = at 'at'."},
+           "time": {"type": "string", "description": "HH:MM (24h) for daily / weekdays / weekly."},
+           "day": {"type": "integer", "description": "Weekly: 0 = Monday ... 6 = Sunday."},
+           "every_hours": {"type": "integer", "description": "Hourly: every N hours."},
+           "at": {"type": "string", "description": "Once: ISO 8601 date and time."},
+           "start_now": {"type": "boolean", "description": "Also run it right away."}},
+          ["task"]),
+    _tool("agent_list", "The user's agents: what each does, when it runs, whether it's working now, and runs that didn't finish.", {}),
+    _tool("agent_start", "Start one of the user's agents now, by its name.", {"name": STR}, ["name"]),
     _tool("homework_assignments", "List assignments Nova found on the user's other homework platforms (WebAssign, MyLab, ALEKS, Lumen, Connect, Gradescope, their school's Moodle or Brightspace...). Use with canvas_assignments for anything about what is due.",
           {"include_done": {"type": "boolean"}}),
     _tool("homework_find", "Read the user's added homework platforms right now and update the list. Pass portal (like 'webassign') or url to add a platform first. Reading only; nothing is clicked or submitted. If a platform needs a sign-in, it says so -- tell the user to sign in from Settings > Homework platforms.",
@@ -1630,6 +1645,36 @@ async def _plan_study_time(title: str, due_at: str, url: str = "", minutes: int 
     return await calendar_hub.plan_study(title, due_at, url or "", minutes)
 
 
+async def _agent_create(task: str, name: str = "", schedule: str = "none", time: str = "", day: int | None = None,
+                        every_hours: int | None = None, at: str = "", start_now: bool = False) -> dict:
+    from . import crew
+    sched = {"kind": schedule or "none", "time": time or None, "day": day or 0, "every_hours": every_hours or 1, "at": at or None}
+    agent = await asyncio.to_thread(crew.create_agent, name, task, sched, "auto", "chat")
+    if start_now:
+        await crew.start(agent["id"])
+    return {"created": agent["name"], "when": crew.describe_schedule(agent["schedule"]), "started": bool(start_now),
+            "note": "It's on the Agents screen, where the user can start, pause, edit or delete it."}
+
+
+async def _agent_list() -> dict:
+    from . import crew
+    view = await asyncio.to_thread(crew.overview)
+    return {"agents": [{"name": a["name"], "does": a["about"], "when": a["when"], "state": a["state"]} for a in view["agents"]],
+            "working_now": [r.get("agent_name") for r in view["working"]],
+            "didnt_finish": [{"name": r.get("agent_name"), "why": r.get("error")} for r in view["unfinished"]]}
+
+
+async def _agent_start(name: str) -> dict:
+    from . import crew
+    wanted = name.strip().lower()
+    agents = crew.agents()
+    match = next((a for a in agents if a["name"].lower() == wanted), None) or next((a for a in agents if wanted in a["name"].lower()), None)
+    if match is None:
+        raise ValueError(f"No agent called {name!r}. Agents: {', '.join(a['name'] for a in agents) or 'none yet'}.")
+    run = await crew.start(match["id"])
+    return {"started": match["name"], "model": run.get("model") or "automatic"}
+
+
 async def _homework_assignments(include_done: bool = False) -> dict:
     from . import homework_discovery
     rows = homework_discovery.items(include_done=include_done)
@@ -1713,6 +1758,9 @@ _EXECUTORS = {
     "calendar_agenda": _calendar_agenda,
     "calendar_free_time": _calendar_free_time,
     "plan_study_time": _plan_study_time,
+    "agent_create": _agent_create,
+    "agent_list": _agent_list,
+    "agent_start": _agent_start,
     "homework_assignments": _homework_assignments,
     "homework_find": _homework_find,
     "list_secrets": _list_secrets,

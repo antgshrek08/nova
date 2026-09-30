@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import Icon from "./icons.jsx";
+import { agoText, recall, remember } from "./remote.js";
 import { listStudyNotes, runCanvasSync } from "../api.js";
 import CalendarTab from "./CalendarTab.jsx";
 import Guide, { GuideButton } from "./Guide.jsx";
@@ -51,6 +53,7 @@ export default function AcademicsView({ palette, dark, onAsk }) {
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [sources, setSources] = useState([]);
+  const [offlineAt, setOfflineAt] = useState(null);
 
   async function load() {
     try {
@@ -62,13 +65,17 @@ export default function AcademicsView({ palette, dark, onAsk }) {
       const found = (other.assignments || []).map((a) => ({
         ...a, course_name: a.platform, submitted: a.status === "done", external: true, canvas_id: `x-${a.id}`,
       }));
-      setAssignments([...(data.assignments || []), ...found]);
+      const all = [...(data.assignments || []), ...found];
+      setAssignments(all);
       setSources(srcs.sources || []);
       if (status) setOp(status);
       setError("");
+      setOfflineAt(null);
+      remember("academics", { assignments: all, sources: srcs.sources || [] });
     } catch (e) {
-      setError(e.message);
-      setAssignments([]);
+      const snap = recall("academics");
+      if (snap) { setAssignments(snap.data.assignments || []); setSources(snap.data.sources || []); setOfflineAt(snap.at); }
+      else { setError(e.message); setAssignments([]); }
     }
   }
 
@@ -165,6 +172,7 @@ export default function AcademicsView({ palette, dark, onAsk }) {
       </div>
       <div className="scroll p-pg">
         <Guide id="academics" />
+        {offlineAt && <p className="note p-offline"><Icon name="info" size={14} /> Your computer's Nova isn't reachable. This is from {agoText(offlineAt)}.</p>}
         {error && <p className="err">{error}</p>}
         <div className="p-two">
           <div className="p-card" style={{ padding: "6px 16px" }}>

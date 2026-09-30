@@ -3,14 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
-.katex, .katex * {
-  white-space: normal !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-}
-.katex .vlist-t, .katex .vlist-t2, .katex .vlist-r, .katex .vlist, .katex .mord, .katex .mrel, .katex .mbin {
-  white-space: nowrap !important;
-}
+/* KaTeX lays formulas out itself (unbreakable pieces, breaks after = and +);
+   forcing white-space on its spans collapses fractions into a column. */
+.katex { word-break: normal; overflow-wrap: normal; }
 .katex-display {
   margin: 0.75em 0 !important;
   overflow-x: auto;

@@ -602,23 +602,87 @@ async def stream_claude_cli(messages: list[dict], model: str | None = None, read
     # and agent control on, Claude drives Onyx directly -- read, click, type,
     # scroll -- and keeps going until the job is done. Found live: without
     # it, Claude through Nova could not touch the browser at all.
-    onyx_config = None if read_only else onyx_mcp_config()
+    # Only when the message is browser work: connecting the browser's tool
+    # server costs about 8 seconds before the first word (measured), which
+    # every "what's 2+2" was paying.
+    onyx_config = None if read_only or not wants_browser(messages) else onyx_mcp_config()
     idle_timeout = None
     if onyx_config:
         command += ["--mcp-config", str(onyx_config), "--allowedTools", "mcp__onyx"]
         # claude -p prints only when it is finished; a long browser task is
         # quiet for many minutes, which the 120 s default would cut off.
         idle_timeout = CLI_BROWSER_IDLE_TIMEOUT_SECONDS
-    command += ["-p", prompt]
+    else:
+        # Only the MCP servers Nova passes, not everything in the user's own
+        # Claude setup: each one would start (and slow) every single reply.
+        command += ["--strict-mcp-config"]
+    # Word by word as it is written, rather than the whole answer at the end:
+    # the first words of a reply show up seconds sooner.
+    command += ["--output-format", "stream-json", "--verbose", "--include-partial-messages", "-p", prompt]
     output_chunks = []
     try:
-        async for chunk in _stream_cli(command, "Claude Code", idle_timeout=idle_timeout):
-            output_chunks.append(chunk)
-            yield chunk
+        async for text in _claude_stream_text(_stream_cli(command, "Claude Code", idle_timeout=idle_timeout)):
+            output_chunks.append(text)
+            yield text
     finally:
         if onyx_config:
             onyx_config.unlink(missing_ok=True)
     await _record_cli_usage(output_chunks, "claude_cli")
+
+
+async def _claude_stream_text(chunks: AsyncIterator[str]) -> AsyncIterator[str]:
+    """The reply's text out of `claude -p --output-format stream-json`: text
+    deltas as they arrive, or the final result if no deltas came (an older
+    CLI). A turn the CLI reports as an error is raised, not shown as text."""
+    import json as _json
+    buffer, streamed = "", False
+    async for chunk in chunks:
+        buffer += chunk
+        while "\n" in buffer:
+            line, buffer = buffer.split("\n", 1)
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            try:
+                event = _json.loads(line)
+            except ValueError:
+                continue
+            kind = event.get("type")
+            if kind == "stream_event":
+                inner = event.get("event") or {}
+                delta = inner.get("delta") or {}
+                if inner.get("type") == "content_block_delta" and delta.get("type") == "text_delta" and delta.get("text"):
+                    streamed = True
+                    yield delta["text"]
+                elif inner.get("type") == "content_block_start" and streamed:
+                    # A new block after tool use: keep it apart from the text before.
+                    block = inner.get("content_block") or {}
+                    if block.get("type") == "text":
+                        yield "\n\n"
+            elif kind == "result":
+                if event.get("is_error"):
+                    raise ProviderUnavailableError(f"Claude Code: {str(event.get('result') or 'error')[:300]}")
+                if not streamed and event.get("result"):
+                    yield str(event["result"])
+
+
+_BROWSER_WORDS = re.compile(
+    r"https?://|www\.|\b[a-z0-9-]+\.(com|org|net|edu|io|gov|app|dev)\b|"
+    r"\b(browser|website|web ?site|web ?page|webpage|tabs?|onyx|canvas|log ?in|sign ?in|click|scroll|"
+    r"open (the |my )?(site|page|link)|go to|navigate|search (the web|online|google)|look (it )?up online|"
+    r"google|youtube|submit|assignments?|quiz(zes)?|homework|pearson|aleks|webassign|mylab|lumen|"
+    r"fill (in|out)|forms?|download|upload|buy|order|book)\b", re.IGNORECASE)
+
+
+def wants_browser(messages: list[dict]) -> bool:
+    """Does the latest request look like work in a web browser?"""
+    for message in reversed(messages):
+        if message.get("role") == "user":
+            content = message.get("content")
+            text = content if isinstance(content, str) else " ".join(
+                part.get("text", "") for part in (content or []) if isinstance(part, dict))
+            return bool(_BROWSER_WORDS.search(text or ""))
+    return False
 
 
 # How long a Claude call that is driving Onyx may run without printing.

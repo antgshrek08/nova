@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { agoText, recall, remember } from "./remote.js";
 import { BACKEND_URL, listObsidianVaults } from "../api.js";
 import Icon from "./icons.jsx";
 import Guide, { GuideButton } from "./Guide.jsx";
@@ -73,13 +74,17 @@ export default function MemoryView({ palette, dark }) {
   const listRef = useRef(null);
   const searchRef = useRef(null);
 
+  const [offlineAt, setOfflineAt] = useState(null);
   async function load() {
     try {
       const data = await call("/knowledge?limit=500");
       setFacts(data.knowledge || []);
+      setOfflineAt(null);
+      remember("memory", data.knowledge || []);
     } catch (e) {
-      setError(e.message);
-      setFacts([]);
+      const snap = recall("memory");
+      if (snap) { setFacts(snap.data || []); setOfflineAt(snap.at); }
+      else { setError(e.message); setFacts([]); }
     }
   }
   useEffect(() => { load(); listObsidianVaults().then((v) => setVaults(v?.vaults || v || [])).catch(() => {}); }, []);
@@ -170,6 +175,7 @@ export default function MemoryView({ palette, dark }) {
       </div>
       <div className="scroll p-pg">
         <Guide id="memory" />
+        {offlineAt && <p className="note p-offline"><Icon name="info" size={14} /> Your computer's Nova isn't reachable. This is from {agoText(offlineAt)}.</p>}
         {error && <p className="err">{error}</p>}
         <div className="p-two">
           <div className="p-stack" ref={listRef}>

@@ -167,8 +167,15 @@ def get_nova_persona_instructions(user_name: str = "Student") -> str:
         "knowledge, science, philosophy, history, coding, mathematics, to life and daily workflow questions—"
         "accurately, directly, and comprehensively, just like any world-class AI model. In addition, you have "
         "deep hands-free tools for desktop and browser control, homework automation, and a software studio.\n\n"
-        "Most of what you say is read aloud, so write the way a person actually talks: contractions, short "
-        "sentences, no unnecessary markdown formatting or bullet lists unless asked for a list.\n\n"
+        "Write the way a person actually talks: contractions, short sentences. Replies are shown on screen "
+        "and may also be read aloud -- speech is cleaned up for you, so format for reading:\n"
+        "- Casual answers are plain prose. No headings or bullets for a one-line answer.\n"
+        "- Rules, steps, formulas, comparisons and reference material get structure: bold labels or short "
+        "headings, numbered steps, bullet lists, tables when comparing things.\n"
+        "- ALL math in LaTeX: inline $...$, display $$...$$ on its own line. For example "
+        "$\\frac{d}{dx}\\left[x^n\\right] = nx^{n-1}$, $\\sec^2 x$, $f'(g(x))\\,g'(x)$. Never write math "
+        "as plain text like d/dx or x^2 or sec²x.\n"
+        "- Code in fenced code blocks with the language named.\n\n"
         "Your character is in word choice and sentence shape, not in extra words. Say the thing. Then stop.\n\n"
         "Never do these -- they are what make an assistant sound generic:\n"
         "- Opening by naming feelings back at the user. Respond to the situation, not to the emotion.\n"
@@ -633,6 +640,8 @@ async def start_memory_indexer():
         from . import nova_pointer
         await asyncio.to_thread(nova_pointer.pointer.start)
     daily_tasks.start()
+    from . import crew
+    crew.start_scheduler()
     reminders.start()
     instagram_dm.start()
     canvas_sync.start()
@@ -643,6 +652,8 @@ async def stop_memory_indexer():
     await browser_control.stop()
     await dev_server.stop()
     await daily_tasks.stop()
+    from . import crew
+    await crew.stop_scheduler()
     await reminders.stop()
     await instagram_dm.stop()
     await canvas_sync.stop()
@@ -891,6 +902,8 @@ async def delete_tts_voice(voice_id: int):
 _APP_SETTINGS_DEFAULTS = {
     "auto_route": True,
     "prefer_local": False,
+    # Quick questions go to the faster model from the same account (routing.FAST_SIBLINGS).
+    "fast_simple_replies": True,
     "enter_sends": True,
     "launch_at_login": False,
     # When launching at login, open only the miniplayer pet rather than the
@@ -3128,6 +3141,10 @@ async def chat(body: ChatRequest):
     # thing Nova does into the slowest part of saying yes. The heuristic is
     # 0.008ms and its answer is unused here anyway; it is kept only because
     # the category is stored on the message row.
+    # Memory recall doesn't depend on the category, so it runs while the
+    # message is classified rather than after (it is cancelled below if the
+    # message turns out to be answered locally).
+    recall_task = asyncio.create_task(memory.recall_for_chat(body.message, body.conversation_id))
     category = await _category_for(
         body.message,
         already_understood=(
@@ -3271,9 +3288,14 @@ async def chat(body: ChatRequest):
     # Deterministic clock/calendar intents skip Chroma and model routing too;
     # they should return at human-interaction speed even if a local model is
     # loading or an MCP server is slow.
-    recalled = [] if fast_answer is not None else await memory.recall_for_chat(
-        body.message, body.conversation_id
-    )
+    if fast_answer is not None:
+        recall_task.cancel()
+        recalled = []
+    else:
+        try:
+            recalled = await recall_task
+        except Exception:  # noqa: BLE001 -- recall is a bonus; never block the reply on it
+            recalled = []
     job = await agents.registry.create_job(body.conversation_id, category=category)
     _app_settings_snapshot = await db.get_app_settings()
     prefer_local = _app_settings_snapshot.get("prefer_local") == "1"
@@ -3711,9 +3733,16 @@ async def chat(body: ChatRequest):
                             reply[:180] or "Nova finished.", url=f"/app/?c={body.conversation_id}",
                             tag=f"nova-reply-{body.conversation_id}", view=f"chat:{body.conversation_id}"))
                 await db.touch_conversation(body.conversation_id)
-                if conversation["project_id"]:
-                    await _sync_project_note(conversation["project_id"])
-                await _sync_conversation_note(body.conversation_id)
+                # Notes are written after "done", not before: saving to the
+                # vault took seconds, and the reply shouldn't wait on it.
+                async def _save_notes(cid=body.conversation_id, pid=conversation["project_id"]):
+                    try:
+                        if pid:
+                            await _sync_project_note(pid)
+                        await _sync_conversation_note(cid)
+                    except Exception:  # noqa: BLE001 -- notes are a copy; the reply is already saved
+                        pass
+                asyncio.create_task(_save_notes())
             finally:
                 # Before "done", so a client reacting to it can send straight away.
                 chat_runs.finish(run)
@@ -5149,3 +5178,179 @@ async def ui_undismiss(note_id: str):
     remaining = sorted(await asyncio.to_thread(_dismissed) - {note_id})
     await asyncio.to_thread(operator_store.put, "ui", "dismissed", {"ids": remaining})
     return {"ids": remaining}
+
+
+# --- Agents (app/crew.py) ----------------------------------------------------
+#
+# One feed for the Agents screen: agents the user set up (and their runs),
+# plus team tasks from Workspace and Nova's browser runs that are live now.
+
+def _crew_error(exc: Exception) -> HTTPException:
+    return HTTPException(400, str(exc))
+
+
+@app.get("/crew")
+async def crew_overview(show_finished: bool = False):
+    from . import crew, operator_store as _ops
+    data = await asyncio.to_thread(crew.overview, show_finished)
+    # Team tasks from Workspace: working now, or stopped part-way (resumable).
+    tasks = [t for t in await db.list_tasks() if not t.get("parent_id")]
+    for t in tasks[:60]:
+        item = {"id": f"task:{t['id']}", "kind": "team", "agent_name": t.get("title") or "Team task",
+                "summary": crew.short(t.get("result_summary") or t.get("description") or "", 140),
+                "model_label": t.get("model") or t.get("provider") or "", "started_at": _ts(t.get("created_at"))}
+        if t.get("status") in ("running", "working", "in_progress", "queued", "pending"):
+            data["working"].append({**item, "status": "working"})
+        elif (t.get("status") in ("interrupted", "error", "failed") and len(data["unfinished"]) < 30
+              # Nova's own daily housekeeping isn't something to resume; and old ones are history.
+              and t.get("team") != "everyday" and (item["started_at"] or 0) > time.time() - 7 * 86400):
+            data["unfinished"].append({**item, "status": "interrupted", "error": crew.short(t.get("error") or "", 140)})
+        elif show_finished and t.get("status") in ("done", "completed") and len(data["finished"]) < 40:
+            data["finished"].append({**item, "status": "done"})
+    # Nova's browser: only runs that are live.
+    now = time.time()
+    for r in await asyncio.to_thread(_ops.listing, "task"):
+        if r.get("status") == "running" and now - (r.get("updated_at") or r.get("created_at") or 0) < 1200:
+            data["working"].append({"id": f"browser:{r.get('id')}", "kind": "browser", "status": "working",
+                                    "agent_name": r.get("workflow") or "Browser task", "summary": crew.short(r.get("url") or "", 90),
+                                    "started_at": r.get("created_at")})
+    data["working"].sort(key=lambda r: r.get("started_at") or 0, reverse=True)
+    return data
+
+
+def _ts(value) -> float | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        text = str(value)
+        return datetime.fromisoformat(text if "T" in text or "+" in text else text.replace(" ", "T") + "+00:00").timestamp()
+    except ValueError:
+        return None
+
+
+@app.post("/crew/agents")
+async def crew_create(body: dict = Body(default={})):
+    from . import crew
+    try:
+        agent = await asyncio.to_thread(crew.create_agent, body.get("name", ""), body.get("task", ""),
+                                        body.get("schedule"), body.get("model") or "auto", "you")
+    except crew.CrewError as exc:
+        raise _crew_error(exc) from exc
+    if body.get("start_now"):
+        await crew.start(agent["id"])
+    return agent
+
+
+@app.patch("/crew/agents/{agent_id}")
+async def crew_update(agent_id: str, body: dict = Body(default={})):
+    from . import crew
+    try:
+        return await asyncio.to_thread(lambda: crew.update_agent(agent_id, **{k: body.get(k) for k in ("name", "task", "schedule", "model", "enabled")}))
+    except crew.CrewError as exc:
+        raise _crew_error(exc) from exc
+
+
+@app.delete("/crew/agents/{agent_id}")
+async def crew_delete(agent_id: str):
+    from . import crew
+    try:
+        await asyncio.to_thread(crew.delete_agent, agent_id)
+    except crew.CrewError as exc:
+        raise _crew_error(exc) from exc
+    return {"deleted": True}
+
+
+@app.post("/crew/agents/{agent_id}/start")
+async def crew_start(agent_id: str):
+    from . import crew
+    try:
+        return await crew.start(agent_id)
+    except crew.CrewError as exc:
+        raise _crew_error(exc) from exc
+
+
+@app.post("/crew/runs/{run_id}/resume")
+async def crew_resume(run_id: str):
+    from . import crew
+    if run_id.startswith("task:"):
+        try:
+            return await director.retry_task(int(run_id[5:]), confirm=True)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+    try:
+        return await crew.resume(run_id)
+    except crew.CrewError as exc:
+        raise _crew_error(exc) from exc
+
+
+@app.post("/crew/runs/{run_id}/stop")
+async def crew_stop(run_id: str):
+    from . import crew
+    if run_id.startswith("task:"):
+        return {"cancelled": await director.cancel_task(int(run_id[5:]))}
+    try:
+        return await asyncio.to_thread(crew.stop, run_id)
+    except crew.CrewError as exc:
+        raise _crew_error(exc) from exc
+
+
+@app.delete("/crew/runs/{run_id}")
+async def crew_delete_run(run_id: str):
+    from . import crew
+    if run_id.startswith("task:"):
+        await db.update_task(int(run_id[5:]), status="cancelled")
+        return {"deleted": True}
+    try:
+        await asyncio.to_thread(crew.delete_run, run_id)
+    except crew.CrewError as exc:
+        raise _crew_error(exc) from exc
+    return {"deleted": True}
+
+
+# --- Remote devices (Settings > Remote) -------------------------------------
+
+def _qr_svg(text: str) -> str:
+    import io as _io
+    import qrcode
+    import qrcode.image.svg
+    buf = _io.BytesIO()
+    qrcode.make(text, image_factory=qrcode.image.svg.SvgPathImage, box_size=8, border=2).save(buf)
+    return buf.getvalue().decode("utf-8")
+
+
+@app.get("/remote/devices")
+async def remote_devices(request: Request):
+    _local_only(request)
+    ready = await asyncio.to_thread(access.phone_readiness)
+    return {"devices": await asyncio.to_thread(access.devices), "computer": access.computer_name(),
+            "address": f"{ready['https_url']}/app" if ready.get("https_url") else None, "setup": ready}
+
+
+@app.post("/remote/devices")
+async def remote_add_device(request: Request, body: dict = Body(default={})):
+    """A device's own key, as the one-time setup link and QR code."""
+    _local_only(request)
+    ready = await asyncio.to_thread(access.phone_readiness)
+    if not ready.get("https_url"):
+        raise HTTPException(400, "Set up the secure address first (the steps above), then add a device.")
+    device, key = await asyncio.to_thread(access.add_device, str(body.get("name") or ""))
+    link = f"{ready['https_url']}/app?token={key}"
+    return {"device": device, "link": link, "qr_svg": await asyncio.to_thread(_qr_svg, link)}
+
+
+@app.delete("/remote/devices/{device_id}")
+async def remote_remove_device(request: Request, device_id: str):
+    _local_only(request)
+    if not await asyncio.to_thread(access.remove_device, device_id):
+        raise HTTPException(404, "That device is already gone.")
+    return {"removed": True}
+
+
+@app.get("/remote/me")
+async def remote_me(request: Request):
+    """Which computer this is, and which paired device is asking."""
+    device = access.device_for(access.presented(request))
+    return {"computer": access.computer_name(), "device": (device or {}).get("name"),
+            "local": access.is_loopback(request.client.host if request.client else None)}

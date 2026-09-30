@@ -131,7 +131,7 @@ class RequireToken(BaseHTTPMiddleware):
             return await call_next(request)
 
         supplied = presented(request)
-        if supplied and secrets.compare_digest(supplied, token()):
+        if supplied and (secrets.compare_digest(supplied, token()) or device_for(supplied)):
             return await call_next(request)
 
         # Logged because a refused remote request is worth knowing about, and
@@ -281,3 +281,77 @@ def serve_nova() -> dict:
             detail += " Turn on HTTPS certificates for your tailnet at login.tailscale.com/admin/dns, then try again."
         raise RuntimeError(detail[:400] or "tailscale serve failed.")
     return phone_readiness()
+
+
+# ---------------------------------------------------------------- devices
+#
+# Each phone (or other computer) that uses this Nova remotely gets its own
+# key, added and removed in Settings > Remote. Removing one device leaves the
+# others working. Only a hash of each key is stored.
+
+import hashlib
+import time as _time
+import uuid as _uuid
+
+DEVICE = "remote_device"
+_device_cache: dict[str, dict] | None = None  # key hash -> device
+_SEEN_EVERY = 60
+
+
+def _hash(key: str) -> str:
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+def _devices_by_hash() -> dict[str, dict]:
+    global _device_cache
+    if _device_cache is None:
+        from . import operator_store
+        _device_cache = {d["key_hash"]: d for d in operator_store.listing(DEVICE) if d.get("key_hash")}
+    return _device_cache
+
+
+def devices() -> list[dict]:
+    """Paired devices, newest first -- names and times only, never keys."""
+    rows = sorted(_devices_by_hash().values(), key=lambda d: d.get("created_at", 0), reverse=True)
+    return [{k: d.get(k) for k in ("id", "name", "created_at", "last_seen")} for d in rows]
+
+
+def add_device(name: str) -> tuple[dict, str]:
+    """A new device and its key (shown once, in the setup link)."""
+    global _device_cache
+    from . import operator_store
+    name = (str(name or "").strip() or "My phone")[:40]
+    key = secrets.token_urlsafe(32)
+    device = {"id": _uuid.uuid4().hex[:10], "name": name, "key_hash": _hash(key), "created_at": _time.time(), "last_seen": None}
+    operator_store.put(DEVICE, device["id"], device)
+    _device_cache = None
+    return {k: device[k] for k in ("id", "name", "created_at", "last_seen")}, key
+
+
+def remove_device(device_id: str) -> bool:
+    global _device_cache
+    from . import operator_store
+    with operator_store.transaction() as conn:
+        gone = conn.execute("DELETE FROM records WHERE kind=? AND id=?", (DEVICE, device_id)).rowcount
+    _device_cache = None
+    return bool(gone)
+
+
+def device_for(key: str | None) -> dict | None:
+    """The device this key belongs to (and note that it was just seen)."""
+    if not key:
+        return None
+    device = _devices_by_hash().get(_hash(key))
+    if device and (_time.time() - (device.get("last_seen") or 0)) > _SEEN_EVERY:
+        device["last_seen"] = _time.time()
+        try:
+            from . import operator_store
+            operator_store.put(DEVICE, device["id"], device)
+        except Exception:  # noqa: BLE001 -- a missed "last seen" is not worth failing a request
+            pass
+    return device
+
+
+def computer_name() -> str:
+    import platform
+    return (platform.node() or "your computer").split(".")[0]

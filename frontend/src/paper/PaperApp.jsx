@@ -22,9 +22,13 @@ import usePrefs from "./usePrefs.js";
 import "./paper.css";
 import { IS_MAC, STOP_KEY, keys } from "./keys.js";
 import { useDismissed } from "./dismissals.js";
+import { stopSpeaking } from "./novaState.js";
+import RemoteGate, { SessionAsk } from "./RemoteGate.jsx";
+import Tour, { TourOffer } from "./Tour.jsx";
+import { IS_REMOTE, useSession } from "./remote.js";
 
 const SECTIONS = [
-  ["chat", "Chat", "chat"],
+  ["chat", IS_REMOTE ? "Remote" : "Chat", "chat"],
   ["academics", "Academics", "cap"],
   ["studio", "Studio", "code"],
   ["agents", "Agents", "nodes"],
@@ -177,18 +181,33 @@ function Shell({ prefs, models }) {
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(() => stored("nova.paper.collapsed", "0") === "1");
   const [onboarding, setOnboarding] = useState(false);
+  const [profileChecked, setProfileChecked] = useState(false);
+  // The tour: offered once, after onboarding ("Show me around" / "Not now" both final).
+  const [tourOffered, dismissTourOffer] = useDismissed("tour.offer");
+  const [touring, setTouring] = useState(false);
   const [palette, setPalette] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const [running, setRunning] = useState(() => new Set());
   const [offline, setOffline] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  const session = useSession();
   // "Workspace unlocked" appears once, the first time four models are ready
   // (?preview=unlock shows it again for a look).
+  // Chat's mute button: the same "Speak Nova's replies" setting as Settings > Voice,
+  // saved in the engine so it stays muted after Nova is reopened.
+  const speaksReplies = [true, "1", 1].includes(prefs.settings.voice_replies);
+  const toggleMute = () => {
+    if (speaksReplies) stopSpeaking();
+    prefs.save({ voice_replies: !speaksReplies });
+  };
+
   // "Later" and "Open Workspace" both mean it has been seen: never again.
   const [unlockDismissed, dismissUnlock] = useDismissed("workspace.unlock");
   const unlockPreview = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "unlock";
   const [unlockClosed, setUnlockClosed] = useState(false);
-  const unlockShown = !unlockClosed && (unlockPreview || (models.unlocked && unlockDismissed === false));
+  const unlockShown = !unlockClosed && (unlockPreview || (!IS_REMOTE && models.unlocked && unlockDismissed === false && tourOffered === true && !touring));
+  const offerTour = profileChecked && !onboarding && tourOffered === false && !touring && !settingsOpen && (!IS_REMOTE || session.live);
+  const startTour = () => { setSettingsOpen(false); setDrawer(false); go("chat"); setTimeout(() => setTouring(true), 250); };
   const closeUnlock = (open) => { if (!unlockPreview) dismissUnlock(); setUnlockClosed(true); if (open) go("workspace"); };
 
   const refreshConversations = useCallback(() => {
@@ -203,7 +222,7 @@ function Shell({ prefs, models }) {
     refreshTabs();
     // ?preview=onboarding shows the welcome again without saving anything.
     if (new URLSearchParams(window.location.search).get("preview") === "onboarding") setOnboarding("preview");
-    else getUserProfile().then((p) => { if (p && Number(p.onboarding_completed) === 0) setOnboarding(true); }).catch(() => {});
+    else getUserProfile().then((p) => { if (p && Number(p.onboarding_completed) === 0) setOnboarding(true); }).catch(() => {}).finally(() => setProfileChecked(true));
     // Nova can add a tab or retitle a chat during any turn.
     const t = setInterval(() => { refreshConversations(); refreshTabs(); }, 8000);
     return () => clearInterval(t);
@@ -318,7 +337,7 @@ function Shell({ prefs, models }) {
 
   const commands = useMemo(() => [
     ...SECTIONS.map(([k, label, icon], i) => ({ id: `go-${k}`, label, icon, group: "Go to", shortcut: `Ctrl+${i + 1}`, order: i, run: () => go(k) })),
-    ...(models.unlocked ? [{ id: "go-workspace", label: "Workspace", icon: "team", group: "Go to", run: () => go("workspace") }] : []),
+    ...(models.unlocked && !IS_REMOTE ? [{ id: "go-workspace", label: "Workspace", icon: "team", group: "Go to", run: () => go("workspace") }] : []),
     { id: "new-chat", label: "New chat", icon: "plus", group: "Action", shortcut: keys("Ctrl+N"), run: newChat },
     { id: "add-tab", label: "Add a tab", icon: "plus", group: "Action", run: () => go("addtab") },
     { id: "theme", label: prefs.dark ? "Switch to day" : "Switch to night", icon: prefs.dark ? "sun" : "moon", group: "Action", shortcut: keys("Ctrl+Shift+L"), run: () => prefs.setMode(prefs.dark ? "day" : "night") },
@@ -326,6 +345,7 @@ function Shell({ prefs, models }) {
     ...(electron?.openMiniplayer ? [{ id: "mini", label: "Open the miniplayer", icon: "pip", group: "Action", run: () => electron.openMiniplayer() }] : []),
     { id: "stop", label: "Stop everything Nova is doing", icon: "stop", group: "Action", keywords: "halt emergency", run: () => operatorStop().then(() => ui.toast("Nova is stopped. Resume from Agents.")) },
     { id: "keys", label: "Keyboard shortcuts", icon: "keys", group: "Help", shortcut: keys("Ctrl+/"), run: () => setKeysOpen(true) },
+    { id: "tour", label: "Take the tour", icon: "info", group: "Help", run: startTour },
     ...SETTINGS_SECTIONS.map(([name, icon]) => ({ id: `set-${name}`, label: name, icon, group: "Settings", run: () => openSettings(name) })),
     ...tabs.map((t) => ({ id: `tab-${t.id}`, label: t.title, icon: "tab", group: "Your tab", run: () => go("usertab", t.id) })),
     ...conversations.slice(0, 200).map((c) => ({ id: `c-${c.id}`, label: titleOf(c), icon: "chat", group: "Chat", order: 100, keywords: c.preview, run: () => { go("chat"); setConversationId(c.id); } })),
@@ -364,7 +384,7 @@ function Shell({ prefs, models }) {
               <Icon name={icon} /><span className="t">{label}</span>
             </button>
           ))}
-          {models.unlocked && (
+          {models.unlocked && !IS_REMOTE && (
             <button className="p-item" aria-label="Workspace" title="Workspace" aria-current={view === "workspace" ? "page" : undefined} onClick={() => go("workspace")}>
               <Icon name="team" /><span className="t">Workspace</span>
             </button>
@@ -385,6 +405,7 @@ function Shell({ prefs, models }) {
           </div>
           <History conversations={conversations} setConversations={setConversations} current={view === "chat" ? conversationId : null}
             running={running} onOpen={(id) => { go("chat"); setConversationId(id); }} onDeleted={() => setConversationId(null)} />
+          <button className="p-item p-phoneonly" onClick={() => { setDrawer(false); startTour(); }}><Icon name="info" /><span className="t">Take the tour</span></button>
           <button className="p-item p-phoneonly" onClick={() => { setDrawer(false); openSettings(); }}><Icon name="gear" /><span className="t">Settings</span></button>
           <div className="bottom">
             {collapsed && <button className="p-item" aria-label="Show the sidebar" title={keys("Show the sidebar (Ctrl+B)")} onClick={() => setCollapsed(false)}><Icon name="side" /><span className="t">Sidebar</span></button>}
@@ -396,9 +417,12 @@ function Shell({ prefs, models }) {
         </nav>
         {drawer && <div className="p-drawerscrim" onClick={() => setDrawer(false)} />}
         <main className="p-main">
-          {offline && <div className="p-banner" role="alert"><i />Nova's engine isn't responding. Reconnecting…</div>}
+          {offline && !IS_REMOTE && <div className="p-banner" role="alert"><i />Nova's engine isn't responding. Reconnecting…</div>}
           {onboarding ? <OnboardingView prefs={prefs} preview={onboarding === "preview"} models={models}
               onDone={(section) => { setOnboarding(false); if (section) openSettings(section); }} />
+            : view === "chat" && IS_REMOTE && !session.live ? (
+              <RemoteGate palette={prefs.palette} dark={prefs.dark} onSetup={() => openSettings("Remote")} onGo={go} />
+            )
             : view === "chat" ? (
               <ChatView
                 conversationId={conversationId}
@@ -410,11 +434,14 @@ function Shell({ prefs, models }) {
                 onToggleExpand={() => setExpanded((x) => !x)}
                 onNewChat={newChat}
                 voiceId={prefs.settings.tts_voice_id}
+                muted={!speaksReplies}
+                onToggleMute={toggleMute}
+                remoteName={IS_REMOTE ? session.name || "your computer" : null}
               />
             )
             : view === "academics" ? <AcademicsView palette={prefs.palette} dark={prefs.dark} onAsk={draftForNova} />
             : view === "studio" ? <StudioView palette={prefs.palette} dark={prefs.dark} />
-            : view === "agents" ? <AgentsView palette={prefs.palette} dark={prefs.dark} />
+            : view === "agents" ? <AgentsView palette={prefs.palette} dark={prefs.dark} onOpenConversation={(id) => { setConversationId(id); go("chat"); }} />
             : view === "memory" ? <MemoryView palette={prefs.palette} dark={prefs.dark} />
             : view === "workspace" ? <WorkspaceView palette={prefs.palette} dark={prefs.dark} onWatch={() => go("agents")} onModels={() => openSettings("Models")} />
             : view === "addtab" ? <AddTabView palette={prefs.palette} dark={prefs.dark} onAsk={askNova} models={models} minModels={WORKSPACE_MIN_MODELS} onModels={() => openSettings("Models")} />
@@ -423,12 +450,15 @@ function Shell({ prefs, models }) {
             )
             : <ChatView conversationId={conversationId} onConversation={(id) => { setConversationId(id); refreshConversations(); }}
                 title={conversationId == null ? "New conversation" : titleOf(conversation)} palette={prefs.palette} dark={prefs.dark}
-                expanded={expanded} onToggleExpand={() => setExpanded((x) => !x)} onNewChat={newChat} voiceId={prefs.settings.tts_voice_id} />}
+                expanded={expanded} onToggleExpand={() => setExpanded((x) => !x)} onNewChat={newChat} voiceId={prefs.settings.tts_voice_id}
+                muted={!speaksReplies} onToggleMute={toggleMute} />}
         </main>
       </div>
       <nav className="p-tabbar" aria-label="Nova">
-        {[["chat", "Chat", "chat"], ["academics", "Academics", "cap"], ["agents", "Agents", "nodes"], ["memory", "Memory", "brain"]].map(([k, l, i]) => (
-          <button key={k} aria-current={view === k && !drawer ? "page" : undefined} onClick={() => go(k)}><Icon name={i} /><span>{l}</span></button>
+        {[["chat", IS_REMOTE ? "Remote" : "Chat", "chat"], ["academics", "Academics", "cap"], ["agents", "Agents", "nodes"], ["memory", "Memory", "brain"]].map(([k, l, i]) => (
+          <button key={k} aria-current={view === k && !drawer ? "page" : undefined} onClick={() => go(k)}>
+            <Icon name={i} /><span>{l}</span>{k === "chat" && IS_REMOTE && <i className={`p-livedot${session.live ? " on" : ""}`} aria-label={session.live ? "Connected" : "Not connected"} />}
+          </button>
         ))}
         <button aria-expanded={drawer} onClick={() => setDrawer((d) => !d)}><Icon name="side" /><span>Menu</span></button>
       </nav>
@@ -450,6 +480,9 @@ function Shell({ prefs, models }) {
           </div>
         </div>
       )}
+      <SessionAsk />
+      {offerTour && <TourOffer onTake={() => { dismissTourOffer(); startTour(); }} onLater={dismissTourOffer} />}
+      {touring && <Tour onClose={() => setTouring(false)} />}
       {palette && <Palette commands={commands} onClose={() => setPalette(false)} />}
       {keysOpen && <ShortcutSheet onClose={() => setKeysOpen(false)} />}
     </div>

@@ -54,7 +54,7 @@ export function NotificationsSection({ prefs }) {
           <Switch on={on("notify_desktop")} label="Notifications on this computer"
             onChange={(v) => { prefs.save({ notify_desktop: v }); if (v && perm === "default") Notification.requestPermission().then(setPerm); }} />
         </Row>
-        <Row label="On your phone" desc={devices === null ? "Checking…" : devices.length ? `${plural(devices.length, "phone")} set up` : "No phone set up yet. See Phone access."}>
+        <Row label="On your phone" desc={devices === null ? "Checking…" : devices.length ? `${plural(devices.length, "phone")} set up` : "No phone set up yet. See Remote."}>
           <Switch on={on("notify_phone")} label="Notifications on your phone" onChange={(v) => prefs.save({ notify_phone: v })} />
         </Row>
         <Row label="Send replies to the phone too" desc="Off keeps your phone for the things that matter">

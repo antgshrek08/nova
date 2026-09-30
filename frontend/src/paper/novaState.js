@@ -3,7 +3,7 @@
 // a chat turn runs, otherwise idle. Derived from the real sources, never from
 // a timer.
 import { useEffect, useState } from "react";
-import { subscribeTtsPlayback } from "../lib/ttsPlayback.js";
+import { stopTtsAudio, subscribeTtsPlayback } from "../lib/ttsPlayback.js";
 
 let speaking = false;
 let listening = false;
@@ -26,6 +26,21 @@ subscribeTtsPlayback((playback) => {
   speaking = Boolean(playback);
   publish();
 });
+
+let hushedAt = 0;
+
+/** Stop Nova talking right now, everywhere -- and drop any reply that was
+ * still being turned into speech when the user asked for quiet. */
+export function stopSpeaking() {
+  hushedAt = Date.now();
+  stopTtsAudio();
+  window.electronAPI?.silenceVoice?.();
+}
+
+/** Was Nova told to be quiet after `since` (ms)? */
+export function hushedSince(since) {
+  return hushedAt >= since;
+}
 
 export function setListening(on) {
   listening = on;

@@ -16,4 +16,7 @@ REVISION = source_revision()
 
 
 def health():
-    return {"status": "ok", "app": "nova", "protocol": 1, "revision": REVISION, "pid": os.getpid()}
+    import platform
+    # The computer's short name, so a phone can say which Nova it found.
+    host = (platform.node() or "").split(".")[0]
+    return {"status": "ok", "app": "nova", "protocol": 1, "revision": REVISION, "pid": os.getpid(), "host": host}

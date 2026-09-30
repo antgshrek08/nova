@@ -2,6 +2,7 @@
 // set in paper.css (.i), so they follow the text color in day and night.
 const PATHS = {
   arrow: <path d="M12 19V5M6 11l6-6 6 6" />,
+  chev: <path d="M9 6l6 6-6 6" />,
   stop: <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none" />,
   mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0014 0M12 18v3" /></>,
   clip: <path d="M20 11l-8.5 8.5a5 5 0 01-7-7L13 4a3.5 3.5 0 015 5l-8.5 8.5a2 2 0 01-3-3L14 7" />,
@@ -50,6 +51,8 @@ const PATHS = {
   cal: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
   sliders: <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4" />,
   voice: <path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" />,
+  speaker: <><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" /><path d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11" /></>,
+  muted: <><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></>,
   palette: <><path d="M12 3a9 9 0 100 18c1 0 2-1 1.5-2-.6-1.1.2-2 1.3-2H17a4 4 0 004-4c0-5.5-4-10-9-10z" /><circle cx="7.5" cy="11" r="1" /><circle cx="10" cy="7" r="1" /><circle cx="15" cy="7.5" r="1" /></>,
   bolt: <path d="M13 3L5 14h6l-1 7 8-11h-6z" />,
   box: <path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8" />,

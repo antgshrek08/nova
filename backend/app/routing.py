@@ -407,6 +407,16 @@ async def resolve(
     if primary_model_id and category not in ("coding", "image_generation"):
         primary_forced = await resolve_model_id(primary_model_id, category, trace)
         if primary_forced is not None and primary_forced.model not in exclude_models:
+            # Quick questions don't need the biggest model, and it is the
+            # slowest to answer: Opus through Claude Code takes about twice
+            # Sonnet's time for "what's 2+2". Settings > Models can turn this off.
+            fast = FAST_SIBLINGS.get((primary_forced.provider, _tier(primary_forced.model)))
+            if category == "quick_simple" and fast and app_settings.get("fast_simple_replies", "1") != "0":
+                quick = await resolve_model_id(fast, category, trace)
+                if quick is not None and quick.model not in exclude_models:
+                    trace.append(f"Quick question -> {quick.label}, the faster sibling of your main model "
+                                 f"({primary_forced.label}).")
+                    return quick
             trace.append(f"User primary model selected in Settings -> {primary_forced.label}.")
             return primary_forced
 
@@ -595,6 +605,16 @@ async def resolve(
 
 
 MAX_CHAIN_CANDIDATES = 4
+
+
+# The faster model from the same account, for quick questions (see
+# resolve_chain). Keyed by (provider, tier).
+FAST_SIBLINGS = {("claude_cli", "opus"): "claude_cli:sonnet", ("claude_cli", "fable"): "claude_cli:sonnet"}
+
+
+def _tier(model: str | None) -> str:
+    name = (model or "").lower()
+    return next((t for t in ("opus", "fable", "sonnet", "haiku") if t in name), name)
 
 
 async def resolve_chain(
