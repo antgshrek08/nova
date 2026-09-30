@@ -45,7 +45,7 @@ connections. Every main screen has a **?** button with a short guide.
 ### Windows
 
 Download the installer from the [Releases](../../releases) page and run it. Releases have
-installers for macOS (.dmg) and Linux (.AppImage, .deb) too.
+installers for macOS (.dmg, for Apple-chip and Intel Macs) and Linux (.AppImage, .deb) too.
 
 Or from source: install [Python 3.12+](https://www.python.org/downloads/) and
 [Node.js 20+](https://nodejs.org), then:

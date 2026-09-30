@@ -24,6 +24,9 @@ jobs:
             target: --win
           - os: macos-latest
             target: --mac
+          # Intel Macs: built on an Intel runner so the bundled Python is x64 too.
+          - os: macos-15-intel
+            target: --mac
           - os: ubuntu-latest
             target: --linux
     steps:
@@ -72,7 +75,7 @@ jobs:
           cd "$backend" && "$py" -m pytest tests -q -p no:cacheprovider -k "self_heal or selfcheck or sentinel"
       - uses: actions/upload-artifact@v4
         with:
-          name: nova-${{ runner.os }}
+          name: nova-${{ matrix.os }}
           path: |
             frontend/release/*.exe
             frontend/release/*.dmg
@@ -100,7 +103,8 @@ jobs:
             | Your computer | File |
             |---|---|
             | Windows | the `.exe` |
-            | Mac | `.dmg` (or the `.zip`) |
+            | Mac with an Apple chip (M1 or newer) | the `.dmg` with `arm64` in its name (or that `.zip`) |
+            | Mac with an Intel chip | the `.dmg` without `arm64` (or that `.zip`) |
             | Linux | `.AppImage` (any distro) or `.deb` (Ubuntu, Debian) |
 
             These builds aren't code-signed yet. On Windows, if SmartScreen appears, choose
