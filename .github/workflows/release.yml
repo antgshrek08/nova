@@ -39,16 +39,36 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Nova's own Python
         run: uv run --no-project --python 3.12 python frontend/build/prepare_python.py
+      - name: Keep macOS from holding the disk image open
+        # hdiutil (which makes the .dmg) can hang forever on hosted Macs when
+        # Spotlight or XProtect grabs the image mid-build.
+        if: runner.os == 'macOS'
+        run: |
+          sudo mdutil -a -i off || true
+          sudo pkill -9 XProtect || true
       - name: Build
         working-directory: frontend
         shell: bash
+        timeout-minutes: 45
         env:
           # Unsigned until a signing certificate is set up; see README.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: |
           npm ci --no-audit --no-fund
           npm run build
-          npx electron-builder ${{ matrix.target }} --publish never
+          if [ "$RUNNER_OS" != macOS ]; then
+            npx electron-builder ${{ matrix.target }} --publish never
+            exit
+          fi
+          # A stuck hdiutil is killed after 15 minutes and the packaging tried
+          # again, rather than the job hanging for hours.
+          for attempt in 1 2 3; do
+            perl -e 'alarm shift; exec @ARGV' 900 npx electron-builder ${{ matrix.target }} --publish never && exit 0
+            echo "Packaging attempt $attempt didn't finish; trying again"
+            pkill -9 hdiutil || true
+            rm -rf release
+          done
+          exit 1
       - name: The packaged engine starts
         # From inside the built app, with its own Python, somewhere it was
         # never built: what a user's computer will do on first launch.
