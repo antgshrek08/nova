@@ -272,6 +272,12 @@ function Shell({ prefs, models }) {
     else if (view.startsWith("settings:")) openSettings(view.slice(9));
     else if (["workspace", "academics", "agents", "studio", "memory"].includes(view)) go(view);
   }, [go, openSettings]);
+  // Links in Nova's own replies that open a place in the app (Markdown.jsx).
+  useEffect(() => {
+    const open = (e) => openNotice({ view: String(e.detail || "") });
+    window.addEventListener("nova-open", open);
+    return () => window.removeEventListener("nova-open", open);
+  }, [openNotice]);
 
   const draftForNova = useCallback((text) => {
     setPrefill(text);

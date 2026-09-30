@@ -23,9 +23,8 @@ N.O.V.A. is fully compatible with Linux distributions.
    npm run dist:linux
    ```
    Outputs will be created in `frontend/release/`:
-   - `N.O.V.A.-0.1.0.AppImage`
-   - `nova_0.1.0_amd64.deb`
-   - `N.O.V.A.-0.1.0.tar.gz`
+   - `Nova-<version>.AppImage`
+   - `nova_<version>_amd64.deb`
 
 ## Supported Features on Linux
 

@@ -178,7 +178,7 @@ def _where(bug: dict) -> str:
 async def _tell(title: str, body: str) -> None:
     try:
         from . import notify
-        await notify.notify("needs_you", title, body, view="settings", tag="nova-self-repair")
+        await notify.notify("needs_you", title, body, view="settings:Health", tag="nova-self-repair")
     except Exception:  # noqa: BLE001
         logger.debug("self-heal notification failed", exc_info=True)
 

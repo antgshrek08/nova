@@ -1,8 +1,8 @@
 {
   "name": "nova",
   "private": true,
-  "version": "0.1.0",
-  "description": "N.O.V.A. desktop app",
+  "version": "0.1.1",
+  "description": "Nova desktop app",
   "author": "Anthony Grant",
   "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://github.com/antgshrek08/nova",
@@ -64,7 +64,7 @@
   },
   "build": {
     "appId": "com.nova.desktop",
-    "productName": "N.O.V.A",
+    "productName": "Nova",
     "files": [
       "dist/**/*",
       "electron/**/*"
@@ -140,13 +140,20 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "public/icon.ico",
+      "artifactName": "Nova-Setup-${version}.${ext}"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nova",
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico",
+      "uninstallDisplayName": "Nova",
+      "deleteAppDataOnUninstall": false
     },
     "mac": {
       "target": [
@@ -165,14 +172,22 @@
       }
     },
     "dmg": {
+      "title": "Nova",
+      "icon": "public/icon.png",
+      "background": "build/background.png",
+      "iconSize": 100,
+      "window": {
+        "width": 540,
+        "height": 380
+      },
       "contents": [
         {
-          "x": 130,
-          "y": 220
+          "x": 140,
+          "y": 196
         },
         {
-          "x": 410,
-          "y": 220,
+          "x": 400,
+          "y": 196,
           "type": "link",
           "path": "/Applications"
         }

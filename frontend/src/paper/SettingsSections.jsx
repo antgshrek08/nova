@@ -503,13 +503,13 @@ export function VoiceSection({ prefs }) {
           );
         })}
       </Section>
-      <Section title="Clone a voice" desc="A clean clip of one person speaking, over 5 seconds, works best. Only use a voice you have permission to use.">
+      {voices?.cloning && <Section title="Clone a voice" desc="A clean clip of one person speaking, over 5 seconds, works best. Only use a voice you have permission to use.">
         <div className="p-grid2">
           <input className="p-input" value={clone.name} onChange={(e) => setClone((c) => ({ ...c, name: e.target.value }))} placeholder="Name for the voice" aria-label="Voice name" />
           <input ref={fileRef} className="p-input" type="file" accept="audio/*" onChange={(e) => setClone((c) => ({ ...c, file: e.target.files?.[0] || null }))} aria-label="Voice clip" />
         </div>
         <div className="p-acts"><button className="p-sm dark" onClick={addClone} disabled={busy || !clone.name.trim() || !clone.file}>{busy ? "Cloning…" : "Clone voice"}</button></div>
-      </Section>
+      </Section>}
     </>
   );
 }

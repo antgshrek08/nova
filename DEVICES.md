@@ -11,7 +11,7 @@ older ones. Find your computer below to see which file to download from the
 
 ## Windows
 
-**Download:** the `.exe` (for example `N.O.V.A.Setup.0.1.0.exe`)
+**Download:** the `.exe` (for example `Nova-Setup-0.1.1.exe`)
 
 | | |
 |---|---|
@@ -39,7 +39,7 @@ Macs come in two kinds. Pick the file that matches yours.
 
 ### Mac with an Intel chip
 
-**Download:** the `.dmg` **without** `arm64` in its name (or `N.O.V.A-…-mac.zip`: unzip it and drag Nova into Applications)
+**Download:** the `.dmg` **without** `arm64` in its name (or `Nova-…-mac.zip`: unzip it and drag Nova into Applications)
 
 | | |
 |---|---|
@@ -68,7 +68,7 @@ click **Open Anyway**. You only do this once.
 | Chromebooks | Intel or AMD Chromebooks with Linux turned on can install the `.deb`. Not yet tested |
 | Doesn't work on | ARM computers (Raspberry Pi, ARM Chromebooks, Pinebook), 32-bit Linux |
 
-**AppImage tip:** make it runnable first (`chmod +x N.O.V.A-*.AppImage`, or
+**AppImage tip:** make it runnable first (`chmod +x Nova-*.AppImage`, or
 right-click > Properties > Allow executing). Ubuntu 22.04 and newer also need
 `libfuse2` for AppImages: `sudo apt install libfuse2` (on Ubuntu 24.04 it's
 `libfuse2t64`).

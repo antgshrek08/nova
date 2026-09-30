@@ -435,7 +435,9 @@ export async function listTtsVoices() {
   const res = await fetch(`${BACKEND_URL}/tts/voices`);
   if (!res.ok) throw new Error(`Failed to load voices (${res.status})`);
   const body = await res.json();
-  return body.voices || [];
+  const voices = body.voices || [];
+  voices.cloning = body.cloning !== false; // whether "Clone a voice" can work here
+  return voices;
 }
 
 /** Clones a new voice from a short reference audio clip (any common audio

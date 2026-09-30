@@ -858,15 +858,22 @@ async def list_tts_voices():
     user-uploaded reference clip. Chatterbox itself ships only the one
     built-in voice (no preset library) -- see tts.py's module docstring."""
     from . import fast_speech
+    import importlib.util
     cloned = await db.list_tts_voices()
+    # The installers leave out Chatterbox (about 2 GB): its voice and cloning
+    # are offered only where it's actually installed, never as a dead end.
+    cloning = importlib.util.find_spec("chatterbox") is not None
     return {
+        "cloning": cloning,
         "voices": [
             *[{"id": key, "name": label, "kind": "online", "note": "Natural voice, needs internet"}
               for key, _edge, label in fast_speech.CATALOG],
             *([{"id": tts.DEFAULT_VOICE_ID, "name": "Ryan · offline", "kind": "offline", "note": "Instant, works without internet"}]
               if fast_speech.offline_ready() else []),
-            {"id": "chatterbox-default", "name": "Chatterbox · offline", "kind": "offline", "note": "Most lifelike offline voice, slower"},
-            *[{"id": str(v["id"]), "name": v["name"], "kind": "cloned", "note": "Your cloned voice, offline, slower"} for v in cloned],
+            *([{"id": "chatterbox-default", "name": "Chatterbox · offline", "kind": "offline", "note": "Most lifelike offline voice, slower"}]
+              if cloning else []),
+            *[{"id": str(v["id"]), "name": v["name"], "kind": "cloned", "note": "Your cloned voice, offline, slower"}
+              for v in (cloned if cloning else [])],
         ]
     }
 

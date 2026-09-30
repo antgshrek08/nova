@@ -84,17 +84,6 @@ jobs:
             rm -rf release
           done
           exit 1
-      - name: Intel Mac disk image (if hdiutil cooperates)
-        if: matrix.os == 'macos-15-intel'
-        continue-on-error: true
-        timeout-minutes: 15
-        working-directory: frontend
-        run: |
-          version=$(node -p "require('./package.json').version")
-          stage=$(mktemp -d)
-          ditto release/mac/*.app "$stage/$(basename release/mac/*.app)"
-          ln -s /Applications "$stage/Applications"
-          perl -e 'alarm shift; exec @ARGV' 780 hdiutil create -volname "N.O.V.A" -srcfolder "$stage" -ov -format UDZO "release/N.O.V.A-$version.dmg"
       - name: The Mac app's signature holds together
         # A broken signature is what macOS reports as "malware". Check it the
         # way Gatekeeper does, and that the signed app still runs.
@@ -128,14 +117,14 @@ jobs:
             else
               echo "Nova did not stay open. Its output:"; cat launch.log
               if [ "$RUNNER_OS" = macOS ]; then
-                report=$(ls -t ~/Library/Logs/DiagnosticReports/*N.O.V.A* 2>/dev/null | head -1)
+                report=$(ls -t ~/Library/Logs/DiagnosticReports/*Nova* 2>/dev/null | head -1)
                 [ -n "$report" ] && { echo "--- crash report $report"; head -c 12000 "$report"; }
               fi
               exit 1
             fi
             kill $pid 2>/dev/null || true
             if [ "$RUNNER_OS" = Windows ]; then taskkill //F //IM "$(basename "$1")" //T >/dev/null 2>&1 || true; fi
-            pkill -f "N.O.V.A" 2>/dev/null || true
+            pkill -f "Nova.app/Contents" 2>/dev/null || true
             pkill -f nova-bin 2>/dev/null || true
             pkill -f "uvicorn app.main:app" 2>/dev/null || true
             sleep 5
@@ -191,9 +180,55 @@ jobs:
             frontend/release/*.deb
           if-no-files-found: error
 
+  intel-dmg:
+    # The Intel Mac disk image, with the same window as the Apple-chip one.
+    # Made on an Apple-chip runner from the Intel build's .zip: hdiutil hangs
+    # when electron-builder runs it on the Intel runners.
+    needs: installers
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: nova-macos-15-intel
+          path: intel
+      - name: Build the disk image
+        shell: bash
+        run: |
+          zip=$(ls intel/*-mac.zip | grep -v arm64 | head -1)
+          version=$(node -p "require('./frontend/package.json').version")
+          mkdir app && ditto -x -k "$zip" app
+          python3 -m pip install --quiet --break-system-packages dmgbuild
+          cat > settings.py <<'EOF'
+          import os
+          app = os.environ["APP"]
+          files = [app]
+          symlinks = {"Applications": "/Applications"}
+          format = "UDZO"
+          background = "frontend/build/background.png"
+          icon_size = 100
+          window_rect = ((200, 120), (540, 380))
+          icon_locations = {os.path.basename(app): (140, 196), "Applications": (400, 196)}
+          show_status_bar = False
+          show_tab_view = False
+          show_toolbar = False
+          show_pathbar = False
+          show_sidebar = False
+          EOF
+          APP="$(ls -d app/*.app | head -1)" perl -e 'alarm shift; exec @ARGV' 900 \
+            python3 -m dmgbuild -s settings.py "Nova" "intel/Nova-$version.dmg"
+          hdiutil verify "intel/Nova-$version.dmg"
+          ls -la intel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nova-intel-dmg
+          path: intel/*.dmg
+          if-no-files-found: error
+
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: installers
+    needs: [installers, intel-dmg]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -212,10 +247,10 @@ jobs:
 
             | Your computer | File |
             |---|---|
-            | Windows | the `.exe` |
-            | Mac with an Apple chip (M1 or newer) | the `.dmg` with `arm64` in its name (or that `.zip`) |
-            | Mac with an Intel chip | the `.zip` without `arm64` in its name (unzip it and drag Nova into Applications), or the `.dmg` without `arm64` if there is one |
-            | Linux | `.AppImage` (any distro) or `.deb` (Ubuntu, Debian) |
+            | Windows 10 or 11 | `Nova-Setup-….exe` |
+            | Mac with an Apple chip (M1 or newer) | `Nova-…-arm64.dmg` |
+            | Mac with an Intel chip | `Nova-….dmg` (the one without `arm64`) |
+            | Linux | `Nova-….AppImage` (any distro) or `nova_…_amd64.deb` (Ubuntu, Debian) |
 
             **First time you open it:** on Windows, if "Windows protected your PC" appears,
             choose **More info > Run anyway**. On a Mac, if macOS says it can't open Nova,

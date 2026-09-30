@@ -117,7 +117,7 @@ function VoiceStep({ prefs }) {
         ))}
       </div>
       {voiceMsg && <p className="err">{voiceMsg}</p>}
-      <p className="note">Press play to hear each one. Ten more voices, and cloning your own, are in Settings, Voice.</p>
+      <p className="note">Press play to hear each one. More voices are in Settings, Voice.</p>
     </div>
   );
 }

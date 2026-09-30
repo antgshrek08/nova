@@ -32,6 +32,10 @@ const DATA_DIR = process.env.NOVA_DATA_DIR || path.join(app.getPath("home"), TES
 if (TEST) {
   app.setName("Nova (test)");
   app.setPath("userData", path.join(app.getPath("appData"), "nova-test"));
+} else {
+  // Where the windows keep their state (sign-ins, what's been dismissed): the
+  // same folder whatever the app is called, so renaming it never loses them.
+  app.setPath("userData", path.join(app.getPath("appData"), "nova"));
 }
 const BACKEND = `http://127.0.0.1:${PORT}`;
 // What the windows add to their address: which engine to talk to, and the test badge.
@@ -414,7 +418,7 @@ function createTray() {
   }
   const icon = nativeImage.createFromPath(trayIconPath);
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip("N.O.V.A.");
+  tray.setToolTip("Nova");
   refreshTrayMenu();
   tray.on("double-click", () => showMainWindow());
   return tray;
@@ -424,7 +428,7 @@ function refreshTrayMenu() {
   if (!tray) return;
   const petUp = Boolean(miniplayerWindow && !miniplayerWindow.isDestroyed());
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "Open N.O.V.A.", click: () => showMainWindow() },
+    { label: "Open Nova", click: () => showMainWindow() },
     {
       label: petUp ? "Hide the pet" : "Show the pet",
       click: () => {
@@ -436,7 +440,7 @@ function refreshTrayMenu() {
     { type: "separator" },
     // Explicitly labelled: with the tray present, closing every window no
     // longer quits, so there has to be an obvious way to actually stop Nova.
-    { label: "Quit N.O.V.A.", click: () => { quitting = true; app.quit(); } },
+    { label: "Quit Nova", click: () => { quitting = true; app.quit(); } },
   ]));
 }
 
@@ -579,7 +583,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
     height: 760,
-    title: TEST ? "Nova (test)" : "N.O.V.A.",
+    title: TEST ? "Nova (test)" : "Nova",
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
     ...(isMac ? { trafficLightPosition: { x: 16, y: 17 } } : {}),
     icon: iconPath,
@@ -757,7 +761,7 @@ function createMiniplayerWindow() {
     // The OS window must not draw a background behind the page -- the page is
     // transparent now, and any window background would show as a visible panel.
     hasShadow: false,
-    title: TEST ? "Nova (test)" : "N.O.V.A.",
+    title: TEST ? "Nova (test)" : "Nova",
     icon: iconPath,
     alwaysOnTop: miniplayerPinned(),
     frame: false,
@@ -995,7 +999,7 @@ function createDesktopPetWindow() {
     y: workArea.y,
     width: workArea.width,
     height: workArea.height,
-    title: TEST ? "Nova (test)" : "N.O.V.A.",
+    title: TEST ? "Nova (test)" : "Nova",
     icon: iconPath,
     transparent: true,
     frame: false,

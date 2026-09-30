@@ -15,7 +15,7 @@ function renderMath(tex, display, key) {
   }
 }
 
-const INLINE = /(\$\$[^$]+\$\$|\$[^$\n]+\$|\\\(.+?\\\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|_[^_\n]+_|\[[^\]]+\]\((?:https?:\/\/|mailto:)[^)\s]+\))/g;
+const INLINE = /(\$\$[^$]+\$\$|\$[^$\n]+\$|\\\(.+?\\\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|_[^_\n]+_|\[[^\]]+\]\((?:https?:\/\/|mailto:|nova:)[^)\s]+\))/g;
 
 function inline(text, keyBase = "") {
   const out = [];
@@ -32,7 +32,10 @@ function inline(text, keyBase = "") {
     else if (tok.startsWith("**")) out.push(<strong key={key}>{inline(tok.slice(2, -2), key)}</strong>);
     else if (tok.startsWith("[")) {
       const m = tok.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      out.push(<a key={key} href={m[2]} target="_blank" rel="noreferrer">{m[1]}</a>);
+      const inApp = m[2].startsWith("nova:");
+      out.push(inApp
+        ? <a key={key} href="#" className="p-inapp" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent("nova-open", { detail: m[2].slice(5).replace("/", ":") })); }}>{m[1]}</a>
+        : <a key={key} href={m[2]} target="_blank" rel="noreferrer">{m[1]}</a>);
     } else out.push(<em key={key}>{inline(tok.slice(1, -1), key)}</em>);
     last = match.index + tok.length;
   }

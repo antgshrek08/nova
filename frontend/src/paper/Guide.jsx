@@ -4,6 +4,7 @@
 import Icon from "./icons.jsx";
 import { undismiss, useDismissed } from "./dismissals.js";
 import { IS_TOUCH, keys, tap } from "./keys.js";
+import { IS_REMOTE } from "./remote.js";
 
 export const GUIDES = {
   chat: {
@@ -73,7 +74,11 @@ export const GUIDES = {
 export default function Guide({ id, onTry }) {
   const g = GUIDES[id];
   const [dismissed, dismiss] = useDismissed(`guide.${id}`);
+  // One thing at a time on a first open: the tour offer comes first, and the
+  // help card after it's answered (on the computer; a phone may never be offered).
+  const [tourOffered] = useDismissed("tour.offer");
   if (!g || dismissed !== false) return null; // null: not known yet -- no flash
+  if (!IS_REMOTE && tourOffered !== true) return null;
   return (
     <section className="p-guide" aria-label={g.title}>
       <div className="hd"><b>{g.title}</b><button className="p-link" onClick={dismiss} aria-label="Hide this guide">Got it</button></div>

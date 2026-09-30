@@ -93,13 +93,13 @@ export function PaletteChoice({ prefs, withCustomInputs = false }) {
           </button>
         ))}
       </div>
-      {withCustomInputs && (
+      {withCustomInputs && prefs.paletteId === "custom" && (
         <div className="p-custom">
-          <span>Custom colors</span>
+          <span>Your colors</span>
           <input type="color" value={c1} onChange={(e) => setCustom(0, e.target.value)} aria-label="First reactor color" />
           <input type="color" value={c2} onChange={(e) => setCustom(1, e.target.value)} aria-label="Second reactor color" />
           <input type="color" value={c3} onChange={(e) => setCustom(2, e.target.value)} aria-label="Depth color" />
-          <span>front, front, depth</span>
+          <span>two main colors, then the shadow color</span>
         </div>
       )}
     </>

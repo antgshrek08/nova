@@ -31,8 +31,8 @@ npm install
 npm run dist:mac
 ```
 The output installers will be created in `frontend/release/`:
-- `N.O.V.A.-0.1.0.dmg`
-- `N.O.V.A.-0.1.0-mac.zip`
+- `Nova-<version>.dmg` (Intel) or `Nova-<version>-arm64.dmg` (Apple chip)
+- `Nova-<version>-mac.zip`
 
 ## macOS Specific Features
 

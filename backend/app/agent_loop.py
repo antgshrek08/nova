@@ -693,18 +693,30 @@ async def run(candidates, messages: list[dict], *, enable_tools: bool = True):
     except Exception as exc:  # noqa: BLE001
         attempts.append(f"local fallback: {type(exc).__name__}: {str(exc)[:160]}")
 
-    detail = "; ".join(attempts[-3:]) or "no providers configured"
-    yield {
-        "type": "token",
-        "content": (
-            "I couldn't reach any model to answer that one.\n\n"
-            f"What I tried: {detail}.\n\n"
-            "Usual causes: Ollama isn't running (`ollama serve`), or the OpenRouter key in "
-            "Settings is missing or out of quota. Everything else in Nova still works — "
-            "ask again once one of those is back."
-        ),
-    }
+    yield {"type": "token", "content": no_model_reply(ordered, attempts)}
     yield {"type": "degraded", "attempts": attempts}
+
+
+def no_model_reply(candidates, attempts: list[str]) -> str:
+    """What to say when nothing could answer -- in words a new user can act on.
+
+    A brand-new install has no model yet; that isn't an error, it's the next
+    step, so it gets a way to take it rather than a stack of exception names.
+    """
+    tried = [c for c in candidates if c is not None and getattr(c, "provider", None) != "unavailable"]
+    setup = "[Set up a model](nova:settings/Models)"
+    if not tried:
+        return (
+            "I need an AI model before I can answer, and none is set up yet.\n\n"
+            f"{setup}. The quickest free option takes about two minutes: a free OpenRouter "
+            "key. If you already pay for ChatGPT or Claude, Nova can use that instead."
+        )
+    names = ", ".join(dict.fromkeys(getattr(c, "label", "a model") for c in tried[:3]))
+    return (
+        f"None of your models answered just now ({names}). They may be offline, signed out, "
+        "or out of free use for today.\n\n"
+        "Try again in a moment, or [check your models](nova:settings/Models)."
+    )
 
 
 def _flatten_images(messages: list[dict]) -> list[dict]:

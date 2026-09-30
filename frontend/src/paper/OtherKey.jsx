@@ -54,15 +54,15 @@ export default function OtherKey({ preview = false, onDone }) {
   return (
     <div className={`p-mg-card${open ? " open" : ""}`}>
       <button className="head" onClick={() => setOpen(!open)} aria-expanded={open}>
-        <span className="t"><b>Any other service or key</b><small>A key Nova doesn't list, by a name you choose (like Jev)</small></span>
+        <span className="t"><b>Any other service or key</b><small>A key Nova doesn't list, by a name you choose (like Together or Fireworks)</small></span>
         {saved.length > 0 && <span className="p-status tested">{saved.length} saved</span>}
         <svg className="car" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" /></svg>
       </button>
       {open && (
         <div className="body">
-          <p>Give it a name and paste the key. If it's for AI models, add the service's API address too, and Nova lists its models to pick from. Nova recognizes names like Jev, OpenAI or Groq and puts those keys where they belong.</p>
+          <p>Give it a name and paste the key. If it's for AI models, add the service's API address too, and Nova lists its models to pick from. Nova recognizes names like OpenAI or Groq and puts those keys where they belong.</p>
           <form className="p-mg-other" onSubmit={submit}>
-            <input className="p-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Name, like Jev or Together" aria-label="Key name" />
+            <input className="p-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Name, like Together or Fireworks" aria-label="Key name" />
             <input className="p-input" type="password" autoComplete="off" value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} placeholder="The key" aria-label="Key" />
             <input className="p-input" value={form.api_base} onChange={(e) => setForm({ ...form, api_base: e.target.value })} placeholder="API address, if it's for models (like https://api.together.xyz/v1)" aria-label="API address (optional)" />
             <div className="p-acts"><button className="p-sm dark" disabled={!form.name.trim() || !form.key.trim() || Boolean(busy)}>{busy === "save" ? "Checking…" : "Save key"}</button></div>
