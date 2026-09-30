@@ -28,6 +28,24 @@ VERSION = os.environ.get("NOVA_PYTHON", "3.12")
 # GPL / non-commercial offline voice (see THIRD_PARTY_NOTICES.md).
 SKIP = ("chatterbox-tts", "setuptools")
 
+# The oldest systems the installers support (see DEVICES.md). Without these,
+# the installer picks each library's newest build for the machine it's built
+# on -- and a build machine on the latest macOS quietly makes Nova need it.
+MACOS_TARGET = "11.0"        # Big Sur: every 2020 Mac, Apple chip or Intel
+LINUX_GLIBC = "2_28"         # Ubuntu 20.04, Debian 10, Fedora 29, RHEL 8 and newer
+
+
+def platform_args() -> tuple[list[str], dict]:
+    """uv flags and environment that pin the library builds to those targets."""
+    machine = platform.machine().lower()
+    if sys.platform == "darwin":
+        arch = "aarch64" if machine in ("arm64", "aarch64") else "x86_64"
+        return ["--python-platform", f"{arch}-apple-darwin"], {"MACOSX_DEPLOYMENT_TARGET": MACOS_TARGET}
+    if sys.platform.startswith("linux"):
+        arch = "aarch64" if machine in ("arm64", "aarch64") else "x86_64"
+        return ["--python-platform", f"{arch}-manylinux_{LINUX_GLIBC}"], {}
+    return [], {}
+
 
 def run(*cmd, **kw):
     print("+", " ".join(str(c) for c in cmd), flush=True)
@@ -60,13 +78,17 @@ def main() -> int:
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
         f.write("\n".join(reqs))
         req_file = f.name
+    extra, extra_env = platform_args()
+    env = {**os.environ, **extra_env}
     try:
-        run(uv, "pip", "install", "--python", exe, "--system", "-r", req_file)
+        run(uv, "pip", "install", "--python", exe, "--system", *extra, "-r", req_file, env=env)
     finally:
         os.unlink(req_file)
     # Nova checks a fix to its own code by running its tests (app/selfcheck.py),
     # so the installed copy carries them and the tool that runs them.
-    run(uv, "pip", "install", "--python", exe, "--system", "pytest", "pytest-asyncio")
+    run(uv, "pip", "install", "--python", exe, "--system", *extra, "pytest", "pytest-asyncio", env=env)
+    # Proof, not hope: every compiled file must run on the oldest supported system.
+    run(exe, Path(__file__).with_name("check_min_os.py"), TARGET, MACOS_TARGET, LINUX_GLIBC.replace("_", "."))
     run(exe, BACKEND / "download_models.py", "--no-voice")
     run(exe, "-c", "import sys; sys.path.insert(0, 'backend'); from app import main; print('Nova imports on', sys.version)",
         cwd=ROOT)

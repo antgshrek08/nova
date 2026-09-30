@@ -47,6 +47,10 @@ connections. Every main screen has a **?** button with a short guide.
 Download the installer from the [Releases](../../releases) page and run it. Releases have
 installers for macOS (.dmg, for Apple-chip and Intel Macs) and Linux (.AppImage, .deb) too.
 
+**[Which computers can run Nova, and which file to download](DEVICES.md)**: Windows 10
+and 11, Macs on macOS 11 or newer (Apple chip or Intel), and 64-bit Linux such as
+Ubuntu 20.04 or newer.
+
 Or from source: install [Python 3.12+](https://www.python.org/downloads/) and
 [Node.js 20+](https://nodejs.org), then:
 

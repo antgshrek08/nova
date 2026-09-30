@@ -133,6 +133,9 @@ jobs:
           body: |
             ## Download
 
+            **Which file is right for your computer, and which computers work:**
+            [DEVICES.md](https://github.com/antgshrek08/nova/blob/main/DEVICES.md)
+
             | Your computer | File |
             |---|---|
             | Windows | the `.exe` |
