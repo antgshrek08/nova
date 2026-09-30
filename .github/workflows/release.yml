@@ -25,8 +25,10 @@ jobs:
           - os: macos-latest
             target: --mac
           # Intel Macs: built on an Intel runner so the bundled Python is x64 too.
+          # Just the .zip here -- electron-builder's .dmg step hangs in hdiutil
+          # on these runners; the next step tries a .dmg separately.
           - os: macos-15-intel
-            target: --mac
+            target: --mac zip
           - os: ubuntu-latest
             target: --linux
     steps:
@@ -69,6 +71,17 @@ jobs:
             rm -rf release
           done
           exit 1
+      - name: Intel Mac disk image (if hdiutil cooperates)
+        if: matrix.os == 'macos-15-intel'
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: frontend
+        run: |
+          version=$(node -p "require('./package.json').version")
+          stage=$(mktemp -d)
+          ditto release/mac/*.app "$stage/$(basename release/mac/*.app)"
+          ln -s /Applications "$stage/Applications"
+          perl -e 'alarm shift; exec @ARGV' 780 hdiutil create -volname "N.O.V.A" -srcfolder "$stage" -ov -format UDZO "release/N.O.V.A-$version.dmg"
       - name: The packaged engine starts
         # From inside the built app, with its own Python, somewhere it was
         # never built: what a user's computer will do on first launch.
@@ -124,7 +137,7 @@ jobs:
             |---|---|
             | Windows | the `.exe` |
             | Mac with an Apple chip (M1 or newer) | the `.dmg` with `arm64` in its name (or that `.zip`) |
-            | Mac with an Intel chip | the `.dmg` without `arm64` (or that `.zip`) |
+            | Mac with an Intel chip | the `.zip` without `arm64` in its name (unzip it and drag Nova into Applications), or the `.dmg` without `arm64` if there is one |
             | Linux | `.AppImage` (any distro) or `.deb` (Ubuntu, Debian) |
 
             These builds aren't code-signed yet. On Windows, if SmartScreen appears, choose
