@@ -51,7 +51,7 @@ def platform_args() -> tuple[list[str], dict]:
         # Compiled libraries must come as ready-made builds for that macOS; if
         # the newest version has none, uv picks the newest version that does,
         # instead of compiling one for the build machine's macOS.
-        no_build = [arg for pkg in COMPILED for arg in ("--no-build-package", pkg)]
+        no_build = [arg for pkg in COMPILED for arg in ("--only-binary", pkg)]
         return ["--python-platform", f"{arch}-apple-darwin", *no_build], {"MACOSX_DEPLOYMENT_TARGET": MACOS_TARGET}
     if sys.platform.startswith("linux"):
         arch = "aarch64" if machine in ("arm64", "aarch64") else "x86_64"
