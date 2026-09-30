@@ -89,7 +89,6 @@
           "!models/piper/**",
           "!vendor/hermes-agent/.git/**",
           "!vendor/hermes-agent/tests/**",
-          "!tests/**",
           "!models/*.zip",
           "!*.db",
           "!**/*.db",

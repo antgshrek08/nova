@@ -60,6 +60,16 @@ jobs:
           curl -sf http://127.0.0.1:8765/health || { cat engine.log; exit 1; }
           echo
           curl -sf http://127.0.0.1:8765/desktop/status
+          echo
+          curl -sf http://127.0.0.1:8765/sentinel/status | head -c 400
+      - name: The packaged app can check a fix to itself
+        # Self-repair keeps a change only if Nova's tests pass, run by the
+        # app's own Python -- so the installer must carry both.
+        shell: bash
+        run: |
+          backend=$(cd "$(find frontend/release -type d -path "*esources/backend" | head -1)" && pwd)
+          py="$backend/python/bin/python3"; [ -f "$backend/python/python.exe" ] && py="$backend/python/python.exe"
+          cd "$backend" && "$py" -m pytest tests -q -p no:cacheprovider -k "self_heal or selfcheck or sentinel"
       - uses: actions/upload-artifact@v4
         with:
           name: nova-${{ runner.os }}
@@ -84,3 +94,18 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+          body: |
+            ## Download
+
+            | Your computer | File |
+            |---|---|
+            | Windows | the `.exe` |
+            | Mac | `.dmg` (or the `.zip`) |
+            | Linux | `.AppImage` (any distro) or `.deb` (Ubuntu, Debian) |
+
+            These builds aren't code-signed yet. On Windows, if SmartScreen appears, choose
+            **More info > Run anyway**. On a Mac, right-click Nova in Applications and choose
+            **Open** the first time. On Linux, make the AppImage executable
+            (`chmod +x` on the file) before running it.
+
+            The first run walks you through setup. See the README for more.

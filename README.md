@@ -27,6 +27,14 @@ Works on **Windows, macOS and Linux**.
   built in; an offline voice is an optional download).
 - **Phone**: open Nova on your phone as an app (no app store needed), with
   notifications.
+- **Yours to shape**: tell Nova how to answer you in your own words, and pick
+  its look, voice, models, how much it may do on its own, and what it notifies
+  you about.
+- **Fixes itself**: when something breaks because of a mistake in Nova's own
+  code, Nova can repair it. A coding model writes the smallest change, and the
+  change is kept only if all of Nova's tests still pass; otherwise it's undone.
+  Settings > Health lets you choose: ask first, fix automatically, or off. If
+  Nova's engine crashes, the app restarts it.
 
 The first run walks you through everything: your name, the look, which models
 to use (with step-by-step help for each), permissions, voice, notes and

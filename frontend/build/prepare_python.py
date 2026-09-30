@@ -64,6 +64,9 @@ def main() -> int:
         run(uv, "pip", "install", "--python", exe, "--system", "-r", req_file)
     finally:
         os.unlink(req_file)
+    # Nova checks a fix to its own code by running its tests (app/selfcheck.py),
+    # so the installed copy carries them and the tool that runs them.
+    run(uv, "pip", "install", "--python", exe, "--system", "pytest", "pytest-asyncio")
     run(exe, BACKEND / "download_models.py", "--no-voice")
     run(exe, "-c", "import sys; sys.path.insert(0, 'backend'); from app import main; print('Nova imports on', sys.version)",
         cwd=ROOT)

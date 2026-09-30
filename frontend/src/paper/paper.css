@@ -315,6 +315,7 @@
 .p-fieldarea:focus { border-color: var(--tx3); }
 .p-input { border: 1px solid var(--ln); border-radius: 10px; background: var(--bg); color: var(--tx); font: 14px var(--sans); padding: 8px 12px; outline: 0; min-width: 0; }
 .p-input:focus { border-color: var(--tx3); }
+.p-instructions { display: block; width: 100%; box-sizing: border-box; resize: vertical; line-height: 1.5; margin-top: 4px; }
 .p-status { font-family: var(--mono); font-size: 11px; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 .p-status.tested { color: var(--ok); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ok) 40%, transparent); }
 .p-status.experimental { color: var(--clay); box-shadow: 0 0 0 1px color-mix(in srgb, var(--clay) 40%, transparent); }

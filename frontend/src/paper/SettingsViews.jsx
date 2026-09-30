@@ -140,6 +140,14 @@ function GeneralSection({ prefs }) {
         {field("major", "Major or focus", "What you study")}
       </div>
       <div className="p-sgroup">
+        <div className="p-shead"><h4>Your instructions for Nova</h4></div>
+        <p className="d">Anything about how Nova should answer you: shorter replies, more examples, a language, a tone. Nova follows these in every chat.</p>
+        <textarea className="p-input p-instructions" rows={4} maxLength={2000} key={`ci-${prefs.loaded ? "l" : "w"}`} defaultValue={s.custom_instructions || ""}
+          placeholder="For example: Keep answers short. Explain math step by step. Call me Sam."
+          aria-label="Your instructions for Nova"
+          onBlur={(e) => { const v = e.target.value.trim(); if (v !== (s.custom_instructions || "")) { prefs.save({ custom_instructions: v }); ui.toast("Saved."); } }} />
+      </div>
+      <div className="p-sgroup">
         <div className="p-shead"><h4>Homework</h4></div>
         <Row label="How Nova helps with homework" desc="Solve answers outright and shows the working. Tutor walks you through it a step at a time.">
           <Seg value={s.homework_mode === "tutor" ? "tutor" : "solve"} onChange={(v) => prefs.save({ homework_mode: v })} label="Homework help" options={[["solve", "Solve"], ["tutor", "Tutor"]]} />
@@ -293,7 +301,7 @@ export function SettingsView({ prefs, section = "Appearance", onSection, onModel
           {current === "Remote" && <><RemoteSettings />{!IS_REMOTE && <div className="p-sgroup"><div className="p-shead"><h4>Advanced</h4></div><Legacy><AccessPanel /></Legacy></div>}</>}
           {current === "Notes" && <ObsidianSettings />}
           {current === "Folders" && <FilesSection />}
-          {current === "Health" && <HealthSection />}
+          {current === "Health" && <HealthSection prefs={prefs} />}
           {current === "About" && <AboutSection />}
         </div>
       </div>

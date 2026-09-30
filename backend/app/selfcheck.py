@@ -20,10 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-import os
 from pathlib import Path
-
-from .ide import nova_source_root
 
 # The suite takes about 25 seconds warm. The ceiling is for a hang -- a test
 # that waits on something that will never arrive -- not for a slow run.
@@ -37,7 +34,10 @@ _ERROR_LINE = re.compile(r"^ERROR\s+(\S+)\s*(?:-\s*(.*))?$", re.MULTILINE)
 
 
 def _python() -> Path:
-    return nova_source_root() / "backend" / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    """The Python running Nova: its venv in a checkout, the bundled one in an
+    installed app. Tests run where the code runs."""
+    import sys
+    return Path(sys.executable)
 
 
 async def run_tests(pattern: str | None = None, root: Path | None = None) -> dict:
@@ -50,11 +50,14 @@ async def run_tests(pattern: str | None = None, root: Path | None = None) -> dic
     `root` runs the suite of another copy of the source -- a staged update --
     with the live checkout's interpreter, since a staged copy has no venv.
     """
-    root = Path(root) if root else nova_source_root()
+    if root is None:
+        from .sentinel import get_repo_root
+        root = get_repo_root()
+    root = Path(root)
     backend = root / "backend"
     python = _python()
-    if not python.is_file():
-        return {"ok": False, "error": f"Nova's Python environment is not at {python}."}
+    if not (backend / "tests").is_dir():
+        return {"ok": False, "error": "This copy of Nova has no tests to check a change with."}
 
     command = [str(python), "-m", "pytest", "tests", "-q", "--no-header", "-p", "no:cacheprovider"]
     if pattern:
@@ -110,13 +113,8 @@ async def run_tests(pattern: str | None = None, root: Path | None = None) -> dic
 
 async def status() -> dict:
     """Whether self-checking is even possible here."""
-    try:
-        root = nova_source_root()
-    except Exception:  # noqa: BLE001
-        return {"available": False, "reason": "Nova's source checkout was not found."}
-    python = _python()
-    if not python.is_file():
-        return {"available": False, "reason": f"No Python environment at {python}."}
+    from .sentinel import get_repo_root
+    root = get_repo_root()
     tests = root / "backend" / "tests"
     count = len(list(tests.glob("test_*.py"))) if tests.is_dir() else 0
     return {"available": count > 0, "root": str(root), "test_files": count,

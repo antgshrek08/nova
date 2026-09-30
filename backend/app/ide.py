@@ -10,7 +10,7 @@ router = APIRouter(prefix="/code")
 
 
 def nova_source_root():
-    candidates = [Path(os.environ.get('NOVA_SOURCE_ROOT', str(Path.home() / 'nova'))), Path(__file__).resolve().parents[2]]
+    candidates = ([Path(os.environ['NOVA_SOURCE_ROOT'])] if os.environ.get('NOVA_SOURCE_ROOT') else []) + [Path(__file__).resolve().parents[2]]
     for candidate in candidates:
         if (candidate / 'backend/app/main.py').is_file() and (candidate / 'frontend/package.json').is_file():
             return candidate.resolve()

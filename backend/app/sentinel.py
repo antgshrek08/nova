@@ -39,9 +39,9 @@ def record_error(source: str, error: Exception | str, context: dict[str, Any] | 
     """Logs and buffers an exception for Sentinel inspection."""
     exc_type = type(error).__name__ if isinstance(error, Exception) else "Error"
     message = str(error)
-    tb = traceback.format_exc() if isinstance(error, Exception) else ""
-    if tb.strip() == "NoneType: None":
-        tb = ""
+    # From the exception itself, so it works outside an except block too
+    # (the logging hook hands errors over after the fact).
+    tb = "".join(traceback.format_exception(error)) if isinstance(error, BaseException) else ""
 
     # Attempt to locate source file and line from traceback
     fault_file = ""
@@ -64,8 +64,16 @@ def record_error(source: str, error: Exception | str, context: dict[str, Any] | 
         "fault_line": fault_line,
         "context": context or {},
     }
+    record["own_file"], record["own_line"] = own_frame(tb)
     _ERROR_BUFFER.append(record)
     logger.error("Sentinel recorded %s from %s: %s", exc_type, source, message)
+    # A bug in Nova's own code: offer (or make) a repair -- see self_heal.py.
+    if record["own_file"]:
+        try:
+            from . import self_heal
+            self_heal.consider(record)
+        except Exception:  # noqa: BLE001 -- noticing a bug must never add one
+            logger.debug("self-heal could not consider an error", exc_info=True)
     return record
 
 
@@ -77,9 +85,34 @@ def get_recent_errors(limit: int = 50) -> list[dict[str, Any]]:
 
 
 def get_repo_root() -> Path:
-    """Returns the root directory of the Nova repository."""
-    from .ide import nova_source_root
-    return nova_source_root()
+    """The folder holding the Nova that is running: a source checkout
+    (backend/ and frontend/) or an installed app's resources folder
+    (backend/ and frontend/dist). Always the code actually in use."""
+    return Path(__file__).resolve().parents[2]
+
+
+def is_checkout() -> bool:
+    """A developer's copy, with the frontend's sources (not only its build)."""
+    return (get_repo_root() / "frontend" / "package.json").is_file()
+
+
+def app_dir() -> Path:
+    return get_repo_root() / "backend" / "app"
+
+
+def own_frame(tb: str) -> tuple[str, int]:
+    """The last place in the traceback that is Nova's own code (not a
+    library it called), as (path relative to the root, line)."""
+    root = get_repo_root().resolve()
+    app = app_dir().resolve()
+    for path, line in reversed(re.findall(r'File "([^"]+)", line (\d+)', tb or "")):
+        try:
+            resolved = Path(path).resolve()
+        except OSError:
+            continue
+        if resolved.is_relative_to(app) and resolved.suffix == ".py":
+            return resolved.relative_to(root).as_posix(), int(line)
+    return "", 0
 
 
 def _target(relative: str) -> Path:
@@ -92,6 +125,8 @@ def _target(relative: str) -> Path:
         raise ValueError("Generated files and repository metadata cannot be repaired")
     if path.suffix.lower() not in {".py", ".js", ".jsx", ".ts", ".tsx", ".css", ".json", ".md", ".html"}:
         raise ValueError("Unsupported source file type")
+    if rel.parts[0] == "frontend" and not is_checkout():
+        raise ValueError("The installed app's screens are prebuilt; only the engine's code can be repaired here")
     return path
 
 
@@ -171,7 +206,7 @@ def rollback_git_checkpoint() -> dict[str, Any]:
 
 def validate_syntax(target_dir: str | Path | None = None) -> dict[str, Any]:
     """Compiles all Python files in the given directory to ensure syntax integrity."""
-    dir_to_check = Path(target_dir) if target_dir else get_repo_root() / "backend" / "app"
+    dir_to_check = Path(target_dir) if target_dir else app_dir()
     errors = []
     py_files = list(dir_to_check.rglob("*.py"))
     for py_file in py_files:
@@ -222,6 +257,10 @@ async def safe_patch_files(files: dict[str, str]) -> dict[str, Any]:
     """
     if not isinstance(files, dict) or not files or len(files) > 50:
         return {"ok": False, "error": "Provide between 1 and 50 source files"}
+    import os as _os
+    if not _os.access(app_dir(), _os.W_OK):
+        return {"ok": False, "error": "This copy of Nova can't change its own files (it's installed read-only). "
+                "Installing the latest version gets the fix instead."}
     if not _PATCH_LOCK.acquire(blocking=False):
         return {"ok": False, "error": "A repair is already running"}
     saved = False

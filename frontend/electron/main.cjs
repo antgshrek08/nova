@@ -356,18 +356,35 @@ function startBackendProcess() {
   backendProcess = spawn(pythonExe, ["-m", "uvicorn", "app.main:app", "--host", host, "--port", String(PORT)], {
     cwd: backendDir,
     windowsHide: true,
-    env: { ...process.env, NOVA_DATA_DIR: DATA_DIR, ...(TEST ? { NOVA_TEST: "1" } : {}) },
+    // NOVA_SUPERVISED: the engine may exit to restart itself (after Nova fixes
+    // a bug in its own code), because this process brings it straight back.
+    env: { ...process.env, NOVA_DATA_DIR: DATA_DIR, NOVA_SUPERVISED: "1", ...(TEST ? { NOVA_TEST: "1" } : {}) },
   });
   weStartedBackend = true;
+  backendStopping = false;
 
   backendProcess.stdout.on("data", (chunk) => logStream.write(chunk));
   backendProcess.stderr.on("data", (chunk) => logStream.write(chunk));
   backendProcess.on("exit", (code) => {
     logStream.write(`--- backend exited with code ${code} ---\n`);
+    if (backendStopping) return;
+    // 75 is the engine asking to be restarted. Anything else unexpected is a
+    // crash: bring it back, but not in a loop -- three tries in five minutes.
+    const now = Date.now();
+    backendCrashes = backendCrashes.filter((t) => now - t < 5 * 60 * 1000);
+    if (code !== 75) backendCrashes.push(now);
+    if (backendCrashes.length > 3) {
+      logStream.write("--- backend keeps stopping; not restarting it again ---\n");
+      return;
+    }
+    setTimeout(() => { if (!backendStopping) startBackendProcess(); }, code === 75 ? 300 : 2000);
   });
 }
+let backendStopping = false;
+let backendCrashes = [];
 
 function stopBackendProcess() {
+  backendStopping = true;
   if (weStartedBackend && backendProcess && !backendProcess.killed) {
     backendProcess.kill();
   }

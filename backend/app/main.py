@@ -22,6 +22,7 @@ from mcp.shared.auth import OAuthClientInformationFull
 
 from . import (
     chat_runs,
+    self_heal,
     sentinel,
     syllabus,
     extensions,
@@ -613,6 +614,15 @@ async def hermes_completion(request: Request):
 
 
 @app.on_event("startup")
+async def _start_self_heal() -> None:
+    """Errors from background work reach Sentinel too, and bugs it finds in
+    Nova's own code can be followed up on this loop."""
+    from . import self_heal
+    self_heal.attach(asyncio.get_running_loop())
+    self_heal.install_log_handler()
+
+
+@app.on_event("startup")
 async def _confirm_source_update_boot() -> None:
     """Startup finished, so an activated self-update passed its boot check."""
     source_updates.confirm_boot()
@@ -904,6 +914,10 @@ _APP_SETTINGS_DEFAULTS = {
     "prefer_local": False,
     # Quick questions go to the faster model from the same account (routing.FAST_SIBLINGS).
     "fast_simple_replies": True,
+    # When Nova finds a bug in its own code (self_heal.py): ask first, fix it, or leave it.
+    "self_repair": "ask",
+    # The user's own words on how Nova should answer them (tone, length, what to call them...).
+    "custom_instructions": "",
     "enter_sends": True,
     "launch_at_login": False,
     # When launching at login, open only the miniplayer pet rather than the
@@ -3413,6 +3427,14 @@ async def chat(body: ChatRequest):
                 {"role": "system", "content": get_nova_persona_instructions((await db.get_user_profile()).get("name", "Student"))},
                 {"role": "system", "content": await _build_self_awareness_context()},
             ]
+            # Settings > General > "Your instructions for Nova": how this user
+            # wants to be answered. Said last among the persona messages so it
+            # wins over Nova's defaults, but it can't switch off safety rules.
+            custom = str(_app_settings_snapshot.get("custom_instructions") or "").strip()[:2000]
+            if custom:
+                base_messages.append({"role": "system", "content": (
+                    "The user's own instructions for how you should answer them. Follow them over the style "
+                    "guidance above whenever they conflict:\n" + custom)})
             if tools_enabled:
                 base_messages.append({"role": "system", "content": NOVA_AGENCY_INSTRUCTIONS})
                 base_messages.append({"role": "system", "content": await _build_environment_context()})
@@ -4939,10 +4961,41 @@ async def sentinel_status():
         "recent_errors_count": len(sentinel.get_recent_errors()),
         "last_checkpoint": sentinel.checkpoint_status(),
         "syntax": sentinel.validate_syntax(),
-        # Undoing a self-repair needs Nova's source as a git checkout -- a
-        # developer's copy, not an installed app.
-        "can_rollback": (sentinel.get_repo_root() / ".git").exists(),
+        # Undoing a self-repair needs Nova's files to be writable (an
+        # AppImage, for one, is read-only).
+        "can_rollback": os.access(sentinel.app_dir(), os.W_OK),
+        "can_repair": os.access(sentinel.app_dir(), os.W_OK),
+        "can_restart": os.environ.get("NOVA_SUPERVISED") == "1",
+        "bugs": self_heal.bugs(),
     }
+
+
+@app.get("/sentinel/bugs")
+async def sentinel_bugs():
+    """Bugs Sentinel found in Nova's own code, newest first."""
+    return {"bugs": self_heal.bugs(), "mode": await self_heal.mode()}
+
+
+@app.post("/sentinel/bugs/{sig}/fix")
+async def sentinel_fix_bug(sig: str):
+    return await self_heal.repair(sig)
+
+
+@app.delete("/sentinel/bugs/{sig}")
+async def sentinel_dismiss_bug(sig: str):
+    if not self_heal.dismiss(sig):
+        raise HTTPException(404, "That problem is no longer listed.")
+    return {"dismissed": True}
+
+
+@app.post("/sentinel/restart")
+async def sentinel_restart():
+    """Restart the engine so a repair takes effect. Only when the desktop app
+    started it -- it is what brings the engine back (exit code 75)."""
+    if os.environ.get("NOVA_SUPERVISED") != "1":
+        raise HTTPException(409, "Restart Nova yourself to use the fix; this engine wasn't started by the app.")
+    asyncio.get_running_loop().call_later(0.5, os._exit, 75)
+    return {"restarting": True}
 
 
 @app.get("/sentinel/errors")

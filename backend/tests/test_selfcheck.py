@@ -10,6 +10,7 @@ or a pass reported when the suite failed, would be worse than no tool.
 """
 import asyncio
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from app import selfcheck
@@ -89,11 +90,16 @@ class Invocation(unittest.TestCase):
         _, command = _with_output("1 passed\n", 0)
         self.assertNotIn("-k", command)
 
-    def test_a_missing_environment_is_reported_not_raised(self):
-        with mock.patch.object(selfcheck, "_python", return_value=mock.Mock(is_file=lambda: False)):
-            result = run(selfcheck.run_tests())
+    def test_a_copy_without_tests_is_reported_not_raised(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run(selfcheck.run_tests(root=Path(tmp)))
         self.assertFalse(result["ok"])
-        self.assertIn("Python environment", result["error"])
+        self.assertIn("no tests", result["error"])
+
+    def test_tests_run_with_the_python_running_nova(self):
+        import sys
+        self.assertEqual(selfcheck._python(), Path(sys.executable))
 
     def test_a_hung_suite_times_out_rather_than_blocking_forever(self):
         async def never(*args, **kwargs):
