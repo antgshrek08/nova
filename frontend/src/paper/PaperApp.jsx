@@ -27,6 +27,9 @@ import RemoteGate, { SessionAsk } from "./RemoteGate.jsx";
 import Tour, { TourOffer } from "./Tour.jsx";
 import { IS_REMOTE, useSession } from "./remote.js";
 
+// The test copy of Nova (npm run start:test): its own data, marked in the title bar.
+const IS_TEST = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("test") === "1";
+
 const SECTIONS = [
   ["chat", IS_REMOTE ? "Remote" : "Chat", "chat"],
   ["academics", "Academics", "cap"],
@@ -320,7 +323,7 @@ function Shell({ prefs, models }) {
     : view === "addtab" ? "Add a tab"
     : view === "workspace" ? "Workspace"
     : SECTIONS.find(([k]) => k === view)?.[1] || "Nova";
-  useEffect(() => { document.title = `${crumb} · Nova`; }, [crumb]);
+  useEffect(() => { document.title = `${crumb} · Nova${IS_TEST ? " (test)" : ""}`; }, [crumb]);
 
   const removeTab = (t) => ui.undoable({
     message: `Removed the "${t.title}" tab.`,
@@ -358,7 +361,7 @@ function Shell({ prefs, models }) {
   return (
     <div className={`paper${prefs.dark ? " night" : ""}${expanded ? " expanded" : ""}${onboarding ? " onboarding" : ""}${collapsed ? " collapsed" : ""}${drawer ? " drawer" : ""}`} style={style}>
       <header className={`p-title${electron?.platform === "darwin" ? " mac" : ""}`}>
-        <div className="l"><Reactor palette={prefs.palette} dark={prefs.dark} /><b>Nova</b></div>
+        <div className="l"><Reactor palette={prefs.palette} dark={prefs.dark} /><b>Nova</b>{IS_TEST && <span className="p-testbadge" title="A separate copy of Nova with its own data, for trying things out">Test</span>}</div>
         <div className="mid">
           <button className="p-searchbtn" onClick={() => setPalette(true)} aria-label={keys("Search and go anywhere (Ctrl+K)")}>
             <Icon name="search" size={13} /><span>{crumb}</span><kbd className="p-kbd">{IS_MAC ? "⌘K" : "Ctrl K"}</kbd>

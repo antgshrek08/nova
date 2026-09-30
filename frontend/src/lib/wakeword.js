@@ -1,3 +1,4 @@
+import { BACKEND_URL } from "../api.js";
 import { openMicrophone } from "./microphone.js";
 let session = null;
 let generation = 0;
@@ -23,7 +24,7 @@ export async function startWakeWordDetection(onWake, onError = () => {}) {
     if (epoch !== generation) { current.stream.getTracks().forEach(t => t.stop()); return; }
     current.context = new AudioContext({ sampleRate: 16000 });
     const source = current.context.createMediaStreamSource(current.stream);
-    current.socket = new WebSocket("ws://127.0.0.1:8000/ws/wakeword");
+    current.socket = new WebSocket(`${BACKEND_URL.replace(/^http/, "ws")}/ws/wakeword`);
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("Wake listener connection timed out")), 5000);
       current.socket.onopen = () => { clearTimeout(timeout); resolve(); };

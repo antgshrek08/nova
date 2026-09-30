@@ -22,7 +22,22 @@ ipcMain.handle("get-desktop-activity", () => ({
 Menu.setApplicationMenu(null);
 
 const isDev = process.env.NODE_ENV === "development";
-const BACKEND_HEALTH_URL = "http://127.0.0.1:8000/health";
+// The test copy of Nova (npm run start:test, or the "Nova (test)" shortcut):
+// a whole second Nova with its own port, data folder and window storage, so
+// onboarding, the tour and everything else can be tried as a brand-new user
+// without touching the real one. NOVA_PORT / NOVA_DATA_DIR move either on their own.
+const TEST = process.env.NOVA_TEST === "1" || process.argv.includes("--nova-test");
+const PORT = Number(process.env.NOVA_PORT || (TEST ? 8010 : 8000));
+const DATA_DIR = process.env.NOVA_DATA_DIR || path.join(app.getPath("home"), TEST ? ".ai-council-test" : ".ai-council");
+if (TEST) {
+  app.setName("Nova (test)");
+  app.setPath("userData", path.join(app.getPath("appData"), "nova-test"));
+}
+const BACKEND = `http://127.0.0.1:${PORT}`;
+// What the windows add to their address: which engine to talk to, and the test badge.
+const PAGE_QUERY = [PORT !== 8000 ? `backend=${encodeURIComponent(BACKEND)}` : "", TEST ? "test=1" : ""].filter(Boolean).join("&");
+const withQuery = (extra) => [extra, PAGE_QUERY].filter(Boolean).join("&");
+const BACKEND_HEALTH_URL = `${BACKEND}/health`;
 
 const isWindows = process.platform === "win32";
 const isMac = process.platform === "darwin";
@@ -132,7 +147,7 @@ const workspaceMcpExe = resolveWorkspaceMcpExe();
 // (see backend/app/config.py) -- read directly here rather than duplicating
 // them into Electron's own config, so there's exactly one place they're
 // ever stored on disk.
-const appEnvPath = path.join(app.getPath("home"), ".ai-council", ".env");
+const appEnvPath = path.join(DATA_DIR, ".env");
 function readAppEnvFile() {
   const values = {};
   let text;
@@ -186,7 +201,7 @@ function startWorkspaceMcpProcess(role, port, credentialsDirName, clientId, clie
   const logStream = fs.createWriteStream(logPath, { flags: "a" });
   logStream.write(`\n--- starting workspace-mcp (${role}) ${new Date().toISOString()} ---\n`);
 
-  const credentialsDir = path.join(app.getPath("home"), ".ai-council", credentialsDirName);
+  const credentialsDir = path.join(DATA_DIR, credentialsDirName);
   fs.mkdirSync(credentialsDir, { recursive: true });
 
   const proc = spawn(
@@ -216,6 +231,7 @@ function startWorkspaceMcpProcess(role, port, credentialsDirName, clientId, clie
 }
 
 async function startWorkspaceMcpIfConfigured() {
+  if (TEST) return; // their ports belong to the real Nova
   const env = readAppEnvFile();
   const clientId = env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = env.GOOGLE_OAUTH_CLIENT_SECRET;
@@ -272,6 +288,7 @@ function launchesAtLogin() {
 }
 
 function applyLaunchAtLogin(enabled, miniplayerOnly = true) {
+  if (TEST) return; // the test copy never starts itself
   if (isLinux) {
     linuxLaunchAtLogin(enabled, miniplayerOnly);
     return;
@@ -335,10 +352,11 @@ function startBackendProcess() {
   // the token in backend/app/access.py load-bearing rather than theoretical --
   // so it is a deliberate choice, off by default, and read from the file the
   // setting is written to rather than assumed.
-  const host = phoneAccessEnabled() ? "0.0.0.0" : "127.0.0.1";
-  backendProcess = spawn(pythonExe, ["-m", "uvicorn", "app.main:app", "--host", host, "--port", "8000"], {
+  const host = !TEST && phoneAccessEnabled() ? "0.0.0.0" : "127.0.0.1";
+  backendProcess = spawn(pythonExe, ["-m", "uvicorn", "app.main:app", "--host", host, "--port", String(PORT)], {
     cwd: backendDir,
     windowsHide: true,
+    env: { ...process.env, NOVA_DATA_DIR: DATA_DIR, ...(TEST ? { NOVA_TEST: "1" } : {}) },
   });
   weStartedBackend = true;
 
@@ -477,7 +495,7 @@ async function openLink(url) {
   if (!["http:", "https:", "mailto:"].includes(target.protocol)) return;
   if (target.protocol !== "mailto:") {
     try {
-      const res = await fetch("http://127.0.0.1:8000/browser/open-link", {
+      const res = await fetch(`${BACKEND}/browser/open-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -511,6 +529,17 @@ ipcMain.handle("open-link", (_event, url) => openLink(String(url || "")));
 ipcMain.handle("show-main-window", () => { showMainWindow(); });
 
 const hasInstanceLock = app.requestSingleInstanceLock();
+// "Start over" (test copy only, and only when no other test copy is open):
+// forget its data and its pages' saved state, so onboarding and the tour run
+// as for a brand-new user. Never touches the real Nova's folders.
+if (TEST && hasInstanceLock && process.argv.includes("--fresh")) {
+  const pageState = ["Local Storage", "IndexedDB", "Session Storage", "Service Worker"].map((d) => path.join(app.getPath("userData"), d));
+  for (const dir of [DATA_DIR, ...pageState]) {
+    if (dir.includes("test")) {
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* in use: left as it is */ }
+    }
+  }
+}
 if (!hasInstanceLock) app.quit();
 app.on("second-instance", (_event, argv) => {
   // Launching Nova again while it is already running means "show me Nova".
@@ -530,7 +559,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
     height: 760,
-    title: "N.O.V.A.",
+    title: TEST ? "Nova (test)" : "N.O.V.A.",
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
     ...(isMac ? { trafficLightPosition: { x: 16, y: 17 } } : {}),
     icon: iconPath,
@@ -557,7 +586,7 @@ function createWindow() {
     win.loadURL("http://localhost:5173");
     win.webContents.openDevTools({ mode: "detach" });
   } else {
-    win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), PAGE_QUERY ? { search: PAGE_QUERY } : undefined);
   }
   return win;
 }
@@ -708,7 +737,7 @@ function createMiniplayerWindow() {
     // The OS window must not draw a background behind the page -- the page is
     // transparent now, and any window background would show as a visible panel.
     hasShadow: false,
-    title: "N.O.V.A.",
+    title: TEST ? "Nova (test)" : "N.O.V.A.",
     icon: iconPath,
     alwaysOnTop: miniplayerPinned(),
     frame: false,
@@ -762,7 +791,7 @@ function createMiniplayerWindow() {
   if (isDev) {
     win.loadURL(url);
   } else {
-    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { search: "nova-reactor=1" });
+    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { search: withQuery("nova-reactor=1") });
   }
   return win;
 }
@@ -946,7 +975,7 @@ function createDesktopPetWindow() {
     y: workArea.y,
     width: workArea.width,
     height: workArea.height,
-    title: "N.O.V.A.",
+    title: TEST ? "Nova (test)" : "N.O.V.A.",
     icon: iconPath,
     transparent: true,
     frame: false,
@@ -975,7 +1004,7 @@ function createDesktopPetWindow() {
   if (isDev) {
     win.loadURL(url);
   } else {
-    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { search: "pet=1" });
+    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { search: withQuery("pet=1") });
   }
   return win;
 }
@@ -1067,7 +1096,7 @@ app.whenReady().then(async () => {
   if (!alreadyRunning) {
     startBackendProcess();
     if (!await waitForBackend()) {
-      dialog.showErrorBox("Nova could not start", "The backend did not become ready, or an older backend is using port 8000. Restart Nova with scripts/Start-Nova.ps1. Details are in the backend.log file in Nova’s app data folder.");
+      dialog.showErrorBox("Nova could not start", `The backend did not become ready, or an older backend is using port ${PORT}. Restart Nova with scripts/Start-Nova.ps1. Details are in the backend.log file in Nova’s app data folder.`);
       app.quit();
       return;
     }
@@ -1081,7 +1110,7 @@ app.whenReady().then(async () => {
   // wired up at all (the setting could already be "on" in the DB from
   // before, with nothing ever actually registered for it).
   try {
-    const res = await fetch("http://127.0.0.1:8000/settings/app", { signal: AbortSignal.timeout(2000) });
+    const res = await fetch(`${BACKEND}/settings/app`, { signal: AbortSignal.timeout(2000) });
     if (res.ok) {
       const settings = await res.json();
       applyLaunchAtLogin(
@@ -1118,7 +1147,7 @@ app.whenReady().then(async () => {
   // macOS and Linux: Nova's pointer overlay and the stop key (Windows' engine
   // draws and registers these itself).
   const pointerOverlay = require("./pointer-overlay.cjs");
-  pointerOverlay.start();
+  pointerOverlay.start(PORT);
 
   app.on("activate", () => {
     if (!BrowserWindow.getAllWindows().some((w) => !pointerOverlay.isOverlay(w))) showMainWindow();

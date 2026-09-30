@@ -101,8 +101,21 @@ What each system asks of you:
 ## Your data
 
 Nova keeps everything in `~/.ai-council/` (`%USERPROFILE%\.ai-council\` on
-Windows): the database, your settings and your API keys (in `.env`). Nothing
+Windows): the database, your settings and your API keys (in `.env`). Set
+`NOVA_DATA_DIR` to keep it somewhere else. Nothing
 there is part of this repository or of the installers.
+
+## Try it as a new user
+
+A separate test copy of Nova, with its own data, runs next to your real one,
+so you can go through onboarding, the tour and everything else as if Nova
+were brand new, without touching your chats, memory or keys:
+
+```bash
+cd frontend
+npm run start:test         # the test copy (marked TEST in the title bar)
+npm run start:test:fresh   # start over: the test copy forgets everything first
+```
 
 ## Development
 

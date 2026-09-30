@@ -1001,3 +1001,5 @@
   .p-tabbar button[aria-current="page"] .i { background: var(--sf); border-radius: 999px; padding: 3px 12px; box-sizing: content-box; }
   .p-agrow, .p-item, .p-sm, .p-btn { min-height: 44px; }  /* comfortable to tap */
 }
+.p-course-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; } .p-course-form .p-acts { grid-column: 1 / -1; } @media (max-width: 640px) { .p-course-form { grid-template-columns: 1fr; } }
+.p-testbadge { margin-left: 6px; font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--bg); background: var(--clay); border-radius: 999px; padding: 3px 7px; }

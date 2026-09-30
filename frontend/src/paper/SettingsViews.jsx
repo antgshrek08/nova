@@ -13,6 +13,8 @@ import { CalendarSources } from "./CalendarSettings.jsx";
 import ModelGuide from "./ModelGuide.jsx";
 import ObsidianSettings from "./ObsidianSettings.jsx";
 import RemoteSettings from "./RemoteSettings.jsx";
+import SchoolProfile from "./SchoolProfile.jsx";
+import HealthSection from "./HealthSection.jsx";
 import { IS_REMOTE } from "./remote.js";
 import { NotificationsSection } from "./SettingsMore.jsx";
 import { useUi } from "./ui.jsx";
@@ -23,8 +25,6 @@ const NotificationsPanel = lazy(() => import("../components/settings/Notificatio
 const EmailPanel = lazy(() => import("../components/settings/EmailPanel.jsx"));
 const AccountsPanel = lazy(() => import("../components/settings/AccountsPanel.jsx"));
 const AccessPanel = lazy(() => import("../components/settings/AccessPanel.jsx"));
-const SentinelPanel = lazy(() => import("../components/settings/SentinelPanel.jsx"));
-const AcademicsPanel = lazy(() => import("../components/settings/AcademicsPanel.jsx"));
 
 // The desktop app (Electron, loaded from a file) versus the phone app or a
 // browser tab (served over http/https by Nova's engine).
@@ -278,7 +278,7 @@ export function SettingsView({ prefs, section = "Appearance", onSection, onModel
           {current === "Coding agents" && <AgentsSection />}
           {current === "Canvas" && <CanvasSection />}
           {current === "Homework platforms" && <PlatformsSection />}
-          {current === "School profile" && <Legacy><AcademicsPanel /></Legacy>}
+          {current === "School profile" && <SchoolProfile />}
           {current === "Sign-ins" && <Legacy><AccountsPanel /></Legacy>}
           {current === "Passwords" && <SecretsSection />}
           {current === "Email" && <Legacy><EmailPanel /></Legacy>}
@@ -293,7 +293,7 @@ export function SettingsView({ prefs, section = "Appearance", onSection, onModel
           {current === "Remote" && <><RemoteSettings />{!IS_REMOTE && <div className="p-sgroup"><div className="p-shead"><h4>Advanced</h4></div><Legacy><AccessPanel /></Legacy></div>}</>}
           {current === "Notes" && <ObsidianSettings />}
           {current === "Folders" && <FilesSection />}
-          {current === "Health" && <Legacy><SentinelPanel /></Legacy>}
+          {current === "Health" && <HealthSection />}
           {current === "About" && <AboutSection />}
         </div>
       </div>

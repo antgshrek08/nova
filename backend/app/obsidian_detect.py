@@ -106,7 +106,8 @@ def detect(connected_paths: list[str] | None = None) -> dict:
     vaults = _from_config()
     _from_disk(vaults)
     connected = {os.path.normcase(os.path.abspath(p)) for p in (connected_paths or [])}
-    nova_own = os.path.normcase(os.path.abspath(str(Path.home() / ".ai-council" / "obsidian-vault")))
+    from . import config
+    nova_own = os.path.normcase(os.path.abspath(str(config.OBSIDIAN_VAULT_DIR)))
     out = []
     for key, v in vaults.items():
         path = Path(v["path"])

@@ -18,7 +18,7 @@ def availability() -> dict:
     exe = executable()
     if not (exe and Path(exe).is_file()):
         return {'available': False, 'availability_reason': 'Antigravity CLI is not installed.'}
-    persisted = dotenv_values(config.ENV_PATH if config else Path.home() / '.ai-council' / '.env')
+    persisted = dotenv_values(config.ENV_PATH if config else Path(os.getenv('NOVA_DATA_DIR') or Path.home() / '.ai-council') / '.env')
     marker = os.environ.get('NOVA_ANTIGRAVITY_CLI_VERIFIED', persisted.get('NOVA_ANTIGRAVITY_CLI_VERIFIED', '0'))
     if str(marker).strip().strip("\"'") != '1':
         return {'available': False, 'availability_reason': 'Antigravity CLI login has not been verified.'}

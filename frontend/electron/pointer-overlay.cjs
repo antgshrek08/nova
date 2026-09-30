@@ -11,7 +11,7 @@
 const { app, BrowserWindow, globalShortcut, screen } = require("electron");
 const http = require("node:http");
 
-const BACKEND = { host: "127.0.0.1", port: 8000 };
+const BACKEND = { host: "127.0.0.1", port: 8000 }; // port set by start()
 const HIDE_AFTER_MS = 4000;
 
 const PAGE = `<!doctype html><meta charset="utf-8"><style>
@@ -165,7 +165,8 @@ function isOverlay(win) {
   return Boolean(win && win.__novaOverlay);
 }
 
-function start() {
+function start(port = 8000) {
+  BACKEND.port = port;
   if (process.platform === "win32") return; // the engine does this natively there
   app.on("browser-window-created", (_event, win) => {
     if (isOverlay(win)) return;

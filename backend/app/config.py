@@ -24,7 +24,10 @@ from dotenv import load_dotenv, set_key
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 _DEV_ENV_PATH = BACKEND_DIR / ".env"
 
-USER_DATA_DIR = Path.home() / ".ai-council"
+# Everything Nova keeps -- database, keys, memory, voices -- lives here.
+# NOVA_DATA_DIR moves it (the test copy of Nova uses its own, so trying
+# onboarding never touches real data).
+USER_DATA_DIR = Path(os.getenv("NOVA_DATA_DIR") or (Path.home() / ".ai-council"))
 USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
 ENV_PATH = USER_DATA_DIR / ".env"
 
@@ -101,7 +104,7 @@ CODEX_CLI_MODEL = os.getenv("CODEX_CLI_MODEL", "")
 # through the native folder picker" -- the file tree, editor, AND the coding
 # CLIs all need to agree on the same current project, or "review what N.O.V.A.
 # changed" would silently be reviewing the wrong folder).
-CLI_WORKSPACE_DIR = Path.home() / ".ai-council" / "cli-workspace"
+CLI_WORKSPACE_DIR = USER_DATA_DIR / "cli-workspace"
 CLI_WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
 
 _workspace_dir_override: Path | None = None
@@ -129,7 +132,7 @@ def reset_workspace_dir() -> None:
 # Phase 2: SQLite persistence for conversations/messages/projects/spend, kept
 # outside the repo alongside the CLI workspace rather than inside backend/
 # (so it survives a `git clean`, matches the CLI workspace's precedent).
-DB_PATH = Path(os.getenv("DB_PATH", str(Path.home() / ".ai-council" / "ai_council.db")))
+DB_PATH = Path(os.getenv("DB_PATH", str(USER_DATA_DIR / "ai_council.db")))
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # Cost control per spec: hard daily budget ceiling on paid providers.
@@ -146,7 +149,7 @@ CLI_CALL_COST_ESTIMATE_USD = float(os.getenv("CLI_CALL_COST_ESTIMATE_USD", "0.05
 AGENTIC_STEP_CAP = int(os.getenv("AGENTIC_STEP_CAP", "5"))
 
 # Phase 3: Chroma vector store for semantic recall across conversations.
-CHROMA_DIR = Path(os.getenv("CHROMA_DIR", str(Path.home() / ".ai-council" / "chroma")))
+CHROMA_DIR = Path(os.getenv("CHROMA_DIR", str(USER_DATA_DIR / "chroma")))
 CHROMA_DIR.mkdir(parents=True, exist_ok=True)
 MEMORY_RECALL_TOP_K = int(os.getenv("MEMORY_RECALL_TOP_K", "3"))
 # Chroma's default embedder returns L2 distance, not similarity -- lower is
@@ -162,7 +165,7 @@ MEMORY_RECALL_MAX_DISTANCE = float(os.getenv("MEMORY_RECALL_MAX_DISTANCE", "1.6"
 # here by hand (there's no non-interactive way to do that part -- same
 # category of one-time manual step as the Claude/Codex CLI logins).
 OBSIDIAN_VAULT_DIR = Path(
-    os.getenv("OBSIDIAN_VAULT_DIR", str(Path.home() / ".ai-council" / "obsidian-vault"))
+    os.getenv("OBSIDIAN_VAULT_DIR", str(USER_DATA_DIR / "obsidian-vault"))
 )
 OBSIDIAN_VAULT_DIR.mkdir(parents=True, exist_ok=True)
 (OBSIDIAN_VAULT_DIR / "Projects").mkdir(parents=True, exist_ok=True)
@@ -265,7 +268,7 @@ IMAGE_GEN_MODEL_ID = os.getenv("IMAGE_GEN_MODEL_ID", "stabilityai/sd-turbo")
 # voice, named by db id. Chatterbox's audio_prompt_path needs a real file on
 # disk, so clones are written here once at upload time rather than round-
 # tripped through a DB blob on every synthesis call.
-VOICES_DIR = Path.home() / ".ai-council" / "voices"
+VOICES_DIR = USER_DATA_DIR / "voices"
 VOICES_DIR.mkdir(parents=True, exist_ok=True)
 
 

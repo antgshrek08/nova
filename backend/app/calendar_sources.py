@@ -25,7 +25,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
-from . import db, operator_store as store
+from . import config, db, operator_store as store
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +184,7 @@ def _account_email(server_name: str) -> str | None:
     its credentials file is named after the address."""
     m = re.search(r"\(([^)]+)\)", server_name)
     role = (m.group(1) if m else "").strip().lower()
-    base = os.path.join(os.path.expanduser("~"), ".ai-council")
+    base = str(config.USER_DATA_DIR)
     pattern = os.path.join(base, f"workspace-mcp-{role}" if role else "workspace-mcp*", "*@*.json")
     files = glob.glob(pattern)
     return os.path.basename(files[0])[:-5] if files else None

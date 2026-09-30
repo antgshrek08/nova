@@ -59,7 +59,8 @@ def _update_home() -> Path:
         from . import config
         data = Path(config.DB_PATH).parent
     except Exception:  # noqa: BLE001
-        data = Path(os.getenv("DB_PATH", str(Path.home() / ".ai-council" / "ai_council.db"))).parent
+        from . import config
+        data = Path(config.DB_PATH).parent
     return data / "source_updates"
 
 

@@ -27,7 +27,7 @@ from pathlib import Path
 
 from . import canvas, config, db
 
-CALENDAR_PATH = Path.home() / ".ai-council" / "canvas-assignments.ics"
+CALENDAR_PATH = config.USER_DATA_DIR / "canvas-assignments.ics"
 SETTINGS_TIME_KEY = "canvas_sync_time"          # "HH:MM", local
 SETTINGS_LAST_RUN_KEY = "canvas_sync_last_run"  # "YYYY-MM-DD", local
 SETTINGS_ENABLED_KEY = "canvas_sync_enabled"

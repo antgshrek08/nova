@@ -19,7 +19,7 @@ export function tourSteps() {
         : "Chat, Academics, Studio, Agents and Memory. Your past chats are listed under Earlier." },
     { target: ".p-composer", title: "Talk to Nova",
       text: "Type here, or press the microphone and speak. Nova picks the right model for each message, and can do things, not just answer." },
-    { target: ".p-rstage", title: "Tap Nova to hush it",
+    { target: ".p-rstage canvas", title: "Tap Nova to hush it",
       text: "While Nova is talking, tap its reactor and it stops right away and goes quiet." },
     { target: "[data-tour=mute]", title: "Mute Nova",
       text: "Nova keeps writing but stops speaking. It stays muted, even after you reopen Nova, until you turn it back on." },

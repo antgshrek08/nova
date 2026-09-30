@@ -19,7 +19,9 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:all": "npm run build && electron-builder -mwl",
-    "prepare-python": "python build/prepare_python.py"
+    "prepare-python": "python build/prepare_python.py",
+    "start:test": "cross-env NODE_ENV=production NOVA_TEST=1 electron . --nova-test",
+    "start:test:fresh": "cross-env NODE_ENV=production NOVA_TEST=1 electron . --nova-test --fresh"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

@@ -4939,6 +4939,9 @@ async def sentinel_status():
         "recent_errors_count": len(sentinel.get_recent_errors()),
         "last_checkpoint": sentinel.checkpoint_status(),
         "syntax": sentinel.validate_syntax(),
+        # Undoing a self-repair needs Nova's source as a git checkout -- a
+        # developer's copy, not an installed app.
+        "can_rollback": (sentinel.get_repo_root() / ".git").exists(),
     }
 
 
