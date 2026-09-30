@@ -157,6 +157,8 @@
       "icon": "public/icon.png",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Nova listens for its wake word and to what you say when you talk to it.",
         "NSAppleEventsUsageDescription": "Nova controls other apps when you ask it to."
@@ -186,6 +188,7 @@
       "maintainer": "Anthony Grant <anthonygrant08@gmail.com>",
       "synopsis": "A desktop AI assistant"
     },
+    "afterPack": "build/afterPack.cjs",
     "copyright": "Copyright (c) 2026 Anthony Grant"
   }
 }

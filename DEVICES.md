@@ -21,6 +21,9 @@ older ones. Find your computer below to see which file to download from the
 | Windows on ARM | Surface Pro X, Surface Pro 9/11 (5G/Snapdragon) and other Snapdragon laptops run Nova on Windows 11 through Windows' built-in emulation. Expect it to be slower. Not yet tested |
 | Doesn't work on | Windows 7 or 8, 32-bit Windows, Windows 10 in S mode (switch out of S mode first) |
 
+**First time you open it:** if a blue "Windows protected your PC" screen
+appears, click **More info**, then **Run anyway**. You only do this once.
+
 ## Mac
 
 Macs come in two kinds. Pick the file that matches yours.
@@ -48,6 +51,10 @@ Macs come in two kinds. Pick the file that matches yours.
 On an older macOS? Updating is free: Apple menu > System Settings (or System
 Preferences) > Software Update. A Mac with an Apple chip can also run the Intel
 version through Rosetta, but the `arm64` version is much faster.
+
+**First time you open it:** if macOS says Nova can't be opened, choose
+**Done**, then go to **System Settings > Privacy & Security**, scroll down and
+click **Open Anyway**. You only do this once.
 
 ## Linux
 

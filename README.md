@@ -106,9 +106,10 @@ What each system asks of you:
   windows by their controls, since Wayland doesn't tell apps where other
   windows are. If your desktop already uses Ctrl+Alt+Esc (KDE does), Nova uses
   Ctrl+Alt+Shift+Esc and says so.
-- **Installers aren't code-signed yet.** Windows shows a SmartScreen warning
-  (More info, then Run anyway) and macOS asks you to right-click the app and
-  choose Open the first time.
+- **Installers aren't signed with a paid certificate yet**, so the first open
+  asks once. Windows: More info, then Run anyway. Mac: choose Done, then System
+  Settings > Privacy & Security > Open Anyway. [SIGNING.md](SIGNING.md) is how
+  that goes away for good.
 
 ## Your data
 

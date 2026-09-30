@@ -53,8 +53,16 @@ jobs:
         shell: bash
         timeout-minutes: 45
         env:
-          # Unsigned until a signing certificate is set up; see README.
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # Signing: see SIGNING.md. With a certificate in the repository's
+          # secrets, Macs get a Developer ID signature and are notarized, and
+          # Windows installers are signed. Without one, Macs get an ad-hoc
+          # signature (build/afterPack.cjs) and Windows is unsigned.
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERTIFICATE_P12 || runner.os == 'Windows' && secrets.WIN_CERTIFICATE_PFX || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CERTIFICATE_PASSWORD || runner.os == 'Windows' && secrets.WIN_CERTIFICATE_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'macOS' && secrets.MAC_CERTIFICATE_P12 != '' && 'true' || 'false' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           npm ci --no-audit --no-fund
           npm run build
@@ -82,6 +90,17 @@ jobs:
           ditto release/mac/*.app "$stage/$(basename release/mac/*.app)"
           ln -s /Applications "$stage/Applications"
           perl -e 'alarm shift; exec @ARGV' 780 hdiutil create -volname "N.O.V.A" -srcfolder "$stage" -ov -format UDZO "release/N.O.V.A-$version.dmg"
+      - name: The Mac app's signature holds together
+        # A broken signature is what macOS reports as "malware". Check it the
+        # way Gatekeeper does, and that the signed app still runs.
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          app=$(ls -d frontend/release/mac*/*.app | head -1)
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | grep -E "^(Signature|Authority|TeamIdentifier|CodeDirectory)" || true
+          ELECTRON_RUN_AS_NODE=1 "$app/Contents/MacOS/$(basename "$app" .app)" -e "console.log('signed app runs on', process.arch)"
+          spctl -a -vv --type execute "$app" || echo "Gatekeeper: not notarized -- expected until a Developer ID certificate is added (SIGNING.md)"
       - name: The packaged engine starts
         # From inside the built app, with its own Python, somewhere it was
         # never built: what a user's computer will do on first launch.
@@ -143,9 +162,11 @@ jobs:
             | Mac with an Intel chip | the `.zip` without `arm64` in its name (unzip it and drag Nova into Applications), or the `.dmg` without `arm64` if there is one |
             | Linux | `.AppImage` (any distro) or `.deb` (Ubuntu, Debian) |
 
-            These builds aren't code-signed yet. On Windows, if SmartScreen appears, choose
-            **More info > Run anyway**. On a Mac, right-click Nova in Applications and choose
-            **Open** the first time. On Linux, make the AppImage executable
-            (`chmod +x` on the file) before running it.
+            **First time you open it:** on Windows, if "Windows protected your PC" appears,
+            choose **More info > Run anyway**. On a Mac, if macOS says it can't open Nova,
+            choose **Done**, then go to **System Settings > Privacy & Security** and click
+            **Open Anyway**. On Linux, make the AppImage executable (`chmod +x` on the file).
+            These prompts appear because the installers aren't signed with a paid
+            certificate yet; see SIGNING.md.
 
             The first run walks you through setup. See the README for more.
