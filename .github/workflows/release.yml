@@ -64,6 +64,11 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          # A secret that isn't set arrives as an empty string, which
+          # electron-builder takes as "sign with this" -- so drop the empty ones.
+          for v in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            [ -z "${!v}" ] && unset "$v"
+          done
           npm ci --no-audit --no-fund
           npm run build
           if [ "$RUNNER_OS" != macOS ]; then
