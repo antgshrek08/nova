@@ -107,40 +107,55 @@ jobs:
           ELECTRON_RUN_AS_NODE=1 "$app/Contents/MacOS/$(basename "$app" .app)" -e "console.log('signed app runs on', process.arch)"
           spctl -a -vv --type execute "$app" || echo "Gatekeeper: not notarized -- expected until a Developer ID certificate is added (SIGNING.md)"
       - name: The app itself opens and stays open
-        # What a user does: double-click Nova. It must still be running a
-        # minute later with its engine answering, or the release stops here.
+        # What a user does: open Nova. It must still be running a little later
+        # with its engine answering, or the release stops here. On Linux both
+        # downloads are tried: the AppImage as is, and the .deb once installed.
         shell: bash
         run: |
           cd frontend/release
-          case "$RUNNER_OS" in
-            macOS)   app=$(ls -d mac*/*.app | head -1); exe="$app/Contents/MacOS/$(basename "$app" .app)" ;;
-            Windows) exe=$(ls win-unpacked/*.exe | grep -vi uninstall | head -1) ;;
-            Linux)   exe=linux-unpacked/nova; sudo apt-get install -y -qq xvfb >/dev/null; run="xvfb-run -a" ;;
-          esac
-          echo "launching: $exe"
-          $run "$exe" --no-first-run > launch.log 2>&1 &
-          pid=$!
-          alive=0
-          for i in $(seq 1 60); do
-            sleep 2
-            kill -0 $pid 2>/dev/null || break
-            curl -sf http://127.0.0.1:8000/health >/dev/null && { alive=1; break; }
-          done
-          sleep 10
-          if [ $alive = 1 ] && kill -0 $pid 2>/dev/null; then
-            echo "Nova opened, and its engine answers."
-          else
-            echo "Nova did not stay open. Its output:"; cat launch.log
-            if [ "$RUNNER_OS" = macOS ]; then
-              report=$(ls -t ~/Library/Logs/DiagnosticReports/*N.O.V.A* 2>/dev/null | head -1)
-              [ -n "$report" ] && { echo "--- crash report $report"; head -c 12000 "$report"; }
+          launch() {
+            echo "launching: $*"
+            "$@" > launch.log 2>&1 &
+            local pid=$! alive=0
+            for i in $(seq 1 60); do
+              sleep 2
+              kill -0 $pid 2>/dev/null || break
+              curl -sf http://127.0.0.1:8000/health >/dev/null && { alive=1; break; }
+            done
+            sleep 10
+            if [ $alive = 1 ] && kill -0 $pid 2>/dev/null; then
+              echo "Nova opened, and its engine answers."
+            else
+              echo "Nova did not stay open. Its output:"; cat launch.log
+              if [ "$RUNNER_OS" = macOS ]; then
+                report=$(ls -t ~/Library/Logs/DiagnosticReports/*N.O.V.A* 2>/dev/null | head -1)
+                [ -n "$report" ] && { echo "--- crash report $report"; head -c 12000 "$report"; }
+              fi
+              exit 1
             fi
-            exit 1
-          fi
-          kill $pid 2>/dev/null || true
-          [ "$RUNNER_OS" = Windows ] && taskkill //F //IM "$(basename "$exe")" //T >/dev/null 2>&1 || true
-          pkill -f "uvicorn app.main:app" 2>/dev/null || true
-          sleep 3
+            kill $pid 2>/dev/null || true
+            if [ "$RUNNER_OS" = Windows ]; then taskkill //F //IM "$(basename "$1")" //T >/dev/null 2>&1 || true; fi
+            pkill -f "N.O.V.A" 2>/dev/null || true
+            pkill -f nova-bin 2>/dev/null || true
+            pkill -f "uvicorn app.main:app" 2>/dev/null || true
+            sleep 5
+          }
+          case "$RUNNER_OS" in
+            macOS)
+              app=$(ls -d mac*/*.app | head -1)
+              launch "$app/Contents/MacOS/$(basename "$app" .app)" ;;
+            Windows)
+              launch "$(ls win-unpacked/*.exe | grep -vi uninstall | head -1)" ;;
+            Linux)
+              sudo apt-get install -y -qq xvfb >/dev/null
+              echo "unprivileged namespaces restricted: $(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)"
+              appimage=$(ls "$PWD"/*.AppImage | head -1); chmod +x "$appimage"
+              export APPIMAGE_EXTRACT_AND_RUN=1
+              launch xvfb-run -a "$appimage"
+              unset APPIMAGE_EXTRACT_AND_RUN
+              sudo apt-get install -y -qq "$PWD/$(ls *.deb | head -1)" >/dev/null
+              launch xvfb-run -a nova ;;
+          esac
       - name: The packaged engine starts
         # From inside the built app, with its own Python, somewhere it was
         # never built: what a user's computer will do on first launch.

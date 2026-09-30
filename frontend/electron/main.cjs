@@ -271,7 +271,10 @@ function linuxLaunchAtLogin(enabled, miniplayerOnly) {
     fs.rmSync(linuxAutostart, { force: true });
     return;
   }
-  const exe = process.env.APPIMAGE || process.execPath;
+  // The launcher next to the real binary (build/afterPack.cjs) decides about
+  // the sandbox, so autostart goes through it too.
+  const launcher = path.join(path.dirname(process.execPath), "nova");
+  const exe = process.env.APPIMAGE || (app.isPackaged && fs.existsSync(launcher) ? launcher : process.execPath);
   const parts = [exe, ...(app.isPackaged ? [] : [app.getAppPath()]), ...(miniplayerOnly ? ["--nova-miniplayer-only"] : [])];
   const exec = parts.map((p) => (/[\s"]/.test(p) ? `"${p.replace(/"/g, '\\"')}"` : p)).join(" ");
   fs.mkdirSync(path.dirname(linuxAutostart), { recursive: true });
