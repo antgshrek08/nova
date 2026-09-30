@@ -1,7 +1,7 @@
 # N.O.V.A.
 
 A desktop AI assistant that runs on your own computer: chat with any model you
-like (free local ones or cloud ones), keep your homework in one place, write
+like (free local ones or cloud ones), keep track of your classes and deadlines, write
 code in a built-in studio, run teams of agents, and talk to it by voice. Your
 chats, memory and keys stay on your machine.
 
