@@ -31,7 +31,7 @@ Macs come in two kinds. Pick the file that matches yours.
 
 | | |
 |---|---|
-| Works on | macOS 11 Big Sur or newer |
+| Works on | macOS 13.5 Ventura or newer (every Mac with an Apple chip can update to it for free) |
 | Examples | MacBook Air (M1, 2020) and every MacBook Air since, MacBook Pro 13" (M1, 2020) and every MacBook Pro since, Mac mini (M1, 2020) and later, iMac 24" (2021) and later, Mac Studio, Mac Pro (2023) |
 
 ### Mac with an Intel chip
@@ -40,13 +40,14 @@ Macs come in two kinds. Pick the file that matches yours.
 
 | | |
 |---|---|
-| Works on | macOS 11 Big Sur or newer |
-| 2020 models | MacBook Air (2020, Intel), MacBook Pro 13" (2020, Intel), iMac 21.5" and 27" (2020), Mac Pro (2019), Mac mini (2018) |
-| Older models | Any Intel Mac that can run macOS Big Sur should work, including MacBook Air and MacBook Pro from late 2013 on, iMac from 2014 on and Mac mini from 2014 on. Older and slower Macs will feel it |
-| Doesn't work on | Macs that can't go past macOS 10.15 Catalina |
+| Works on | macOS 13.5 Ventura or newer |
+| 2020 models | MacBook Air (2020, Intel), MacBook Pro 13" and 16" (2019–2020, Intel), iMac 21.5" and 27" (2020), Mac Pro (2019), Mac mini (2018) |
+| Older models | Intel Macs that can run macOS Ventura: MacBook Air (2018 and later), MacBook Pro (2017 and later), iMac (2017 and later), iMac Pro, Mac mini (2018 and later) |
+| Doesn't work on | Macs that can't update past macOS 12 Monterey |
 
-A Mac with an Apple chip can also run the Intel version through Rosetta, but
-the `arm64` version is much faster.
+On an older macOS? Updating is free: Apple menu > System Settings (or System
+Preferences) > Software Update. A Mac with an Apple chip can also run the Intel
+version through Rosetta, but the `arm64` version is much faster.
 
 ## Linux
 
@@ -90,7 +91,7 @@ Settings > Remote.
 
 Every release is built and started on Windows, on Macs with both kinds of
 chip, and on Ubuntu. The build also checks that every file it bundles is made
-for macOS 11 and for Linux systems as old as Ubuntu 20.04. If one isn't, the
+for macOS 13.5 and for Linux systems as old as Ubuntu 20.04. If one isn't, the
 release isn't published. The older systems above are supported by how Nova is
 built, but haven't all been tested on real hardware. If Nova doesn't work on
 your computer, please [open an issue](../../issues) with your model and system

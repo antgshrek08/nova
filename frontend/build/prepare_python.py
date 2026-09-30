@@ -31,8 +31,16 @@ SKIP = ("chatterbox-tts", "setuptools")
 # The oldest systems the installers support (see DEVICES.md). Without these,
 # the installer picks each library's newest build for the machine it's built
 # on -- and a build machine on the latest macOS quietly makes Nova need it.
-MACOS_TARGET = "11.0"        # Big Sur: every 2020 Mac, Apple chip or Intel
+# macOS 13.5 Ventura: every Mac from 2020 (and most from 2017-18) can run it.
+# Not lower, because Playwright's bundled Node.js needs 13.5.
+MACOS_TARGET = "13.5"
 LINUX_GLIBC = "2_28"         # Ubuntu 20.04, Debian 10, Fedora 29, RHEL 8 and newer
+
+
+COMPILED = ("av", "numpy", "onnxruntime", "orjson", "ctranslate2", "tokenizers", "grpcio", "protobuf",
+            "pydantic-core", "cryptography", "pillow", "psutil", "chroma-hnswlib", "chromadb", "greenlet",
+            "uvloop", "watchfiles", "httptools", "websockets", "yarl", "multidict", "frozenlist", "aiohttp",
+            "tiktoken", "regex", "jiter", "rpds-py", "sympy", "soundfile", "cffi", "zstandard", "pyyaml")
 
 
 def platform_args() -> tuple[list[str], dict]:
@@ -40,7 +48,11 @@ def platform_args() -> tuple[list[str], dict]:
     machine = platform.machine().lower()
     if sys.platform == "darwin":
         arch = "aarch64" if machine in ("arm64", "aarch64") else "x86_64"
-        return ["--python-platform", f"{arch}-apple-darwin"], {"MACOSX_DEPLOYMENT_TARGET": MACOS_TARGET}
+        # Compiled libraries must come as ready-made builds for that macOS; if
+        # the newest version has none, uv picks the newest version that does,
+        # instead of compiling one for the build machine's macOS.
+        no_build = [arg for pkg in COMPILED for arg in ("--no-build-package", pkg)]
+        return ["--python-platform", f"{arch}-apple-darwin", *no_build], {"MACOSX_DEPLOYMENT_TARGET": MACOS_TARGET}
     if sys.platform.startswith("linux"):
         arch = "aarch64" if machine in ("arm64", "aarch64") else "x86_64"
         return ["--python-platform", f"{arch}-manylinux_{LINUX_GLIBC}"], {}
