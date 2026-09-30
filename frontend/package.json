@@ -64,7 +64,7 @@
   },
   "build": {
     "appId": "com.nova.desktop",
-    "productName": "N.O.V.A.",
+    "productName": "N.O.V.A",
     "files": [
       "dist/**/*",
       "electron/**/*"
