@@ -106,6 +106,41 @@ jobs:
           codesign -dv "$app" 2>&1 | grep -E "^(Signature|Authority|TeamIdentifier|CodeDirectory)" || true
           ELECTRON_RUN_AS_NODE=1 "$app/Contents/MacOS/$(basename "$app" .app)" -e "console.log('signed app runs on', process.arch)"
           spctl -a -vv --type execute "$app" || echo "Gatekeeper: not notarized -- expected until a Developer ID certificate is added (SIGNING.md)"
+      - name: The app itself opens and stays open
+        # What a user does: double-click Nova. It must still be running a
+        # minute later with its engine answering, or the release stops here.
+        shell: bash
+        run: |
+          cd frontend/release
+          case "$RUNNER_OS" in
+            macOS)   app=$(ls -d mac*/*.app | head -1); exe="$app/Contents/MacOS/$(basename "$app" .app)" ;;
+            Windows) exe=$(ls win-unpacked/*.exe | grep -vi uninstall | head -1) ;;
+            Linux)   exe=linux-unpacked/nova; sudo apt-get install -y -qq xvfb >/dev/null; run="xvfb-run -a" ;;
+          esac
+          echo "launching: $exe"
+          $run "$exe" --no-first-run > launch.log 2>&1 &
+          pid=$!
+          alive=0
+          for i in $(seq 1 60); do
+            sleep 2
+            kill -0 $pid 2>/dev/null || break
+            curl -sf http://127.0.0.1:8000/health >/dev/null && { alive=1; break; }
+          done
+          sleep 10
+          if [ $alive = 1 ] && kill -0 $pid 2>/dev/null; then
+            echo "Nova opened, and its engine answers."
+          else
+            echo "Nova did not stay open. Its output:"; cat launch.log
+            if [ "$RUNNER_OS" = macOS ]; then
+              report=$(ls -t ~/Library/Logs/DiagnosticReports/*N.O.V.A* 2>/dev/null | head -1)
+              [ -n "$report" ] && { echo "--- crash report $report"; head -c 12000 "$report"; }
+            fi
+            exit 1
+          fi
+          kill $pid 2>/dev/null || true
+          [ "$RUNNER_OS" = Windows ] && taskkill //F //IM "$(basename "$exe")" //T >/dev/null 2>&1 || true
+          pkill -f "uvicorn app.main:app" 2>/dev/null || true
+          sleep 3
       - name: The packaged engine starts
         # From inside the built app, with its own Python, somewhere it was
         # never built: what a user's computer will do on first launch.
