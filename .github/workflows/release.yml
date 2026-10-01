@@ -71,6 +71,7 @@ jobs:
           done
           npm ci --no-audit --no-fund
           npm run build
+          node build/check_icons.cjs
           if [ "$RUNNER_OS" != macOS ]; then
             npx electron-builder ${{ matrix.target }} --publish never
             exit
@@ -84,6 +85,32 @@ jobs:
             rm -rf release
           done
           exit 1
+      - name: Windows shows the current logo
+        # The taskbar, Start menu and installer take their picture from the
+        # icon inside each .exe. Compare those with the current logo, pixel by
+        # pixel, so a release can never ship an old one.
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $logo = (New-Object System.Drawing.Icon("frontend/public/icon.ico", 32, 32)).ToBitmap()
+          function Difference($bitmap) {
+            $total = 0
+            for ($x = 0; $x -lt 32; $x++) { for ($y = 0; $y -lt 32; $y++) {
+              $a = $bitmap.GetPixel($x, $y); $b = $logo.GetPixel($x, $y)
+              $total += [math]::Abs($a.R - $b.R) + [math]::Abs($a.G - $b.G) + [math]::Abs($a.B - $b.B) + [math]::Abs($a.A - $b.A)
+            } }
+            return $total / (32 * 32 * 4)
+          }
+          $exes = @(Get-ChildItem frontend/release/win-unpacked/*.exe) + @(Get-ChildItem frontend/release/*.exe)
+          $bad = 0
+          foreach ($exe in $exes) {
+            $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe.FullName).ToBitmap()
+            $d = [math]::Round((Difference $icon), 1)
+            "{0}: differs from the current logo by {1} (of 255)" -f $exe.Name, $d
+            if ($d -gt 12) { $bad++ }
+          }
+          if ($bad) { throw "$bad .exe file(s) don't show the current logo." }
       - name: The Mac app's signature holds together
         # A broken signature is what macOS reports as "malware". Check it the
         # way Gatekeeper does, and that the signed app still runs.
