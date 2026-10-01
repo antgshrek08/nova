@@ -22,6 +22,15 @@ ipcMain.handle("get-desktop-activity", () => ({
 Menu.setApplicationMenu(null);
 
 const isDev = process.env.NODE_ENV === "development";
+
+function logMainError(kind, err) {
+  try {
+    const line = `${new Date().toISOString()} ${kind}: ${err && err.stack ? err.stack : String(err)}\n`;
+    fs.appendFileSync(path.join(app.getPath("userData"), "main-errors.log"), line);
+  } catch { /* nowhere to write: nothing more to do */ }
+}
+process.on("uncaughtException", (err) => logMainError("uncaught exception", err));
+process.on("unhandledRejection", (err) => logMainError("unhandled rejection", err));
 // The test copy of Nova (npm run start:test, or the "Nova (test)" shortcut):
 // a whole second Nova with its own port, data folder and window storage, so
 // onboarding, the tour and everything else can be tried as a brand-new user
@@ -143,7 +152,8 @@ function resolveWorkspaceMcpExe() {
       return c;
     }
   }
-  return candidates[0];
+  // Not installed here: Gmail and Calendar stay off, nothing else changes.
+  return null;
 }
 const workspaceMcpExe = resolveWorkspaceMcpExe();
 // google_workspace_mcp needs GOOGLE_OAUTH_CLIENT_ID/SECRET, which live in
@@ -226,6 +236,8 @@ function startWorkspaceMcpProcess(role, port, credentialsDirName, clientId, clie
     }
   );
   workspaceMcpProcesses[role] = { process: proc, weStarted: true };
+  // A program that can't start is reported here, not thrown at the user.
+  proc.on("error", (err) => logStream.write(`--- workspace-mcp (${role}) could not start: ${err.message} ---\n`));
 
   proc.stdout.on("data", (chunk) => logStream.write(chunk));
   proc.stderr.on("data", (chunk) => logStream.write(chunk));
@@ -242,6 +254,10 @@ async function startWorkspaceMcpIfConfigured() {
   // No-op, not an error, for anyone who hasn't set up Google OAuth at all --
   // Gmail/Calendar are optional, the rest of the app must not depend on them.
   if (!clientId || !clientSecret) return;
+  if (!workspaceMcpExe) {
+    console.warn("Google sign-in is set up, but workspace-mcp isn't installed; Gmail and Calendar are off.");
+    return;
+  }
 
   for (const { role, port, credentialsDirName } of WORKSPACE_MCP_ACCOUNTS) {
     const alreadyRunning = await isWorkspaceMcpHealthy(port);
@@ -370,6 +386,7 @@ function startBackendProcess() {
   weStartedBackend = true;
   backendStopping = false;
 
+  backendProcess.on("error", (err) => logStream.write(`--- backend could not start: ${err.message} ---\n`));
   backendProcess.stdout.on("data", (chunk) => logStream.write(chunk));
   backendProcess.stderr.on("data", (chunk) => logStream.write(chunk));
   backendProcess.on("exit", (code) => {

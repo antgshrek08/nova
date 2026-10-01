@@ -104,3 +104,4 @@ ptyprocess>=0.7; sys_platform != "win32"
 # is GPL-3.0 and the voice's training data is licensed non-commercial
 # (CC BY-NC-SA 4.0), so it is never bundled with Nova. Each person can add it
 # to their own computer with: python backend/download_models.py
+workspace-mcp==1.25.2  # Gmail and Calendar (started by the desktop app when Google sign-in is set up)
