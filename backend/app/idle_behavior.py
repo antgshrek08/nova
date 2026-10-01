@@ -33,7 +33,10 @@ _PROMPT = (
 
 
 async def _pick_model() -> str | None:
-    models = await providers.get_local_ollama_models()
+    try:
+        models = await providers.get_local_ollama_models()
+    except Exception:  # noqa: BLE001 -- no Ollama on this computer is normal
+        return None
     if not models:
         return None
     ids = [m.id for m in models]

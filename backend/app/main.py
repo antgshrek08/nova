@@ -767,8 +767,23 @@ _SPEECH_SUMMARY_INSTRUCTIONS = (
 _SUMMARY_PREFERRED_KEYWORDS = ["qwen3.5:4b", "qwen2.5:0.5b", "tinyllama"]
 
 
+def _opening_sentences(text: str, limit: int = 280) -> str:
+    prose = re.sub(r"```.*?```", " ", text, flags=re.S)
+    prose = re.sub(r"[#*_>`|]+", " ", prose)
+    prose = re.sub(r"\s+", " ", prose).strip()
+    out = ""
+    for sentence in re.split(r"(?<=[.!?])\s+", prose):
+        if out and len(out) + len(sentence) + 1 > limit:
+            break
+        out = f"{out} {sentence}".strip()
+    return out[:limit]
+
+
 async def _pick_summary_model() -> str | None:
-    models = await providers.get_local_ollama_models()
+    try:
+        models = await providers.get_local_ollama_models()
+    except Exception:  # noqa: BLE001 -- no Ollama on this computer is normal
+        return None
     if not models:
         return None
     ids = [m.id for m in models]
@@ -797,9 +812,9 @@ async def summarize_for_speech(body: TTSRequest):
         return {"summary": text}
     model_id = await _pick_summary_model()
     if model_id is None:
-        raise HTTPException(
-            status_code=503, detail="No local Ollama model available to summarize with right now."
-        )
+        # No local model to summarize with: say the opening instead of the
+        # whole thing -- the first sentences, without code or formatting.
+        return {"summary": _opening_sentences(text)}
     messages = [
         {"role": "system", "content": _SPEECH_SUMMARY_INSTRUCTIONS},
         {"role": "user", "content": text},
@@ -3178,6 +3193,10 @@ async def chat(body: ChatRequest):
     # homework does (the user's rule for the Token Harbor key).
     if routing.is_homework(body.message, homework_mode=body.homework) and await routing.has_homework_model():
         category = routing.HOMEWORK_CATEGORY
+    # The image model is an optional extra the installers don't carry; without
+    # it, a chat model answers a request for a picture instead of an error.
+    if category == "image_generation" and not image_gen.is_available():
+        category = "general_writing"
 
     # Attachments (Chat tab "attach a file", see /chat/attachments): fetched
     # once here, before persistence, so both the DB row (small metadata,

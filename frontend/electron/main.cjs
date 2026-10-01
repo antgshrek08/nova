@@ -345,12 +345,40 @@ async function isBackendHealthy() {
   }
 }
 
-async function waitForBackend(maxAttempts = 60, intervalMs = 500) {
-  for (let i = 0; i < maxAttempts; i++) {
+// A first launch can be slow: antivirus checks every new file, an older
+// computer takes its time. Wait generously, but stop early if the engine
+// keeps stopping -- that won't fix itself by waiting.
+async function waitForBackend(maxMs = 180000, intervalMs = 500) {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
     if (await isBackendHealthy()) return true;
+    if (backendCrashes.length > 3) return false;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   return false;
+}
+
+// Shown the moment Nova is opened, until its window is ready, so a slow first
+// start never looks like nothing happened.
+let splashWindow = null;
+function showSplash() {
+  const dark = require("electron").nativeTheme.shouldUseDarkColors;
+  const bg = dark ? "#0b1220" : "#f6f3ec";
+  const fg = dark ? "#e2e8f0" : "#1f2937";
+  const sub = dark ? "#94a3b8" : "#6b7280";
+  let icon = "";
+  try { icon = `data:image/png;base64,${fs.readFileSync(iconPath.replace(/icon\.ico$/, "icon.png")).toString("base64")}`; } catch { /* text only */ }
+  const html = `<!doctype html><html><body style="margin:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${bg};color:${fg};font:15px -apple-system,'Segoe UI',sans-serif;-webkit-app-region:drag;user-select:none">
+    ${icon ? `<img src="${icon}" width="72" height="72" style="margin-bottom:14px">` : ""}
+    <div style="font-weight:600">Starting Nova…</div>
+    <div style="margin-top:6px;font-size:12.5px;color:${sub}">The first start can take a minute.</div></body></html>`;
+  splashWindow = new BrowserWindow({ width: 340, height: 230, frame: false, resizable: false, show: true, center: true,
+    backgroundColor: bg, skipTaskbar: false, title: "Nova", icon: iconPath, webPreferences: { sandbox: true } });
+  splashWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+}
+function closeSplash() {
+  if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close();
+  splashWindow = null;
 }
 
 function startBackendProcess() {
@@ -618,6 +646,8 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, "..", "dist", "index.html"), PAGE_QUERY ? { search: PAGE_QUERY } : undefined);
   }
+  win.once("ready-to-show", closeSplash);
+  setTimeout(closeSplash, 15000); // never leave it up
   return win;
 }
 
@@ -1124,15 +1154,31 @@ app.whenReady().then(async () => {
   // terminal), don't spawn a second one on the same port -- just use it.
   const alreadyRunning = await isBackendHealthy();
   if (!alreadyRunning) {
+    if (!process.argv.includes("--nova-miniplayer-only")) showSplash();
     startBackendProcess();
-    if (!await waitForBackend()) {
-      dialog.showErrorBox("Nova could not start", `The backend did not become ready, or an older backend is using port ${PORT}. Restart Nova with scripts/Start-Nova.ps1. Details are in the backend.log file in Nova’s app data folder.`);
-      app.quit();
-      return;
+    while (!await waitForBackend()) {
+      closeSplash();
+      const { response } = await dialog.showMessageBox({
+        type: "warning",
+        title: "Nova",
+        message: "Nova couldn't finish starting",
+        detail: "Something kept its engine from starting. Restarting your computer usually fixes this. "
+          + "If it keeps happening, \"Show details\" opens the log to include in a bug report.",
+        buttons: ["Try again", "Show details", "Quit"],
+        defaultId: 0,
+        cancelId: 2,
+      });
+      if (response === 1) shell.showItemInFolder(path.join(app.getPath("userData"), "backend.log"));
+      if (response !== 0) { app.quit(); return; }
+      stopBackendProcess();
+      backendCrashes = [];
+      showSplash();
+      startBackendProcess();
     }
   }
 
-  await startWorkspaceMcpIfConfigured();
+  // Gmail and Calendar come up in the background; the window doesn't wait.
+  startWorkspaceMcpIfConfigured().catch((err) => logMainError("workspace-mcp", err));
 
   // Reconcile the OS-level registration with whatever's persisted in
   // Settings on every launch -- covers both a normal "user flipped the

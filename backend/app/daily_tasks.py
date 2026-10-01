@@ -13,13 +13,25 @@ PROMPTS = (
     "Daily performance review: inspect available Nova telemetry and tests for regressions; report only measured evidence.",
     "Daily reminders: review open workspace tasks and surface concise reminders for today.",
 )
+# Reviewing Nova's own changes and timings is for a developer's copy of Nova,
+# not for someone who installed it.
+DEVELOPER_ONLY = {"code_review", "performance"}
+
+
 async def _run_once():
-    from . import db, providers, agents, telemetry
+    from . import config, db, providers, agents, sentinel, telemetry
+    # These run on a free OpenRouter model; without a key there's nothing to
+    # run them on, and a list of failed jobs every morning helps no one.
+    if not config.openrouter_api_key():
+        return
+    developer_copy = sentinel.is_checkout()
     settings = await db.get_app_settings()
     today = datetime.now().astimezone().date().isoformat()
     recent = (await db.list_tasks())[:30]
     evidence = json.dumps({"date": today, "tasks": recent, "timings": telemetry.snapshot()}, default=str)[:16000]
     for role, prompt in zip(("briefing", "code_review", "performance", "reminder"), PROMPTS):
+        if role in DEVELOPER_ONLY and not developer_copy:
+            continue
         key = f"everyday:last:{role}"
         if settings.get(key) == today:
             continue

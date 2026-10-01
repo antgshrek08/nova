@@ -212,7 +212,7 @@ class Checks(unittest.IsolatedAsyncioTestCase):
             asyncio=asyncio,app=types.SimpleNamespace(),HTTPException=type("HTTPException",(Exception,),{}),
             providers=package.providers,routing=package.routing,code_files=package.code_files,
             project_context=types.SimpleNamespace(context_for=lambda *a,**k:None,wants_project_context=lambda *a,**k:False),
-            image_gen=types.SimpleNamespace(detect_image_request=lambda _:None),
+            image_gen=types.SimpleNamespace(detect_image_request=lambda _:None, is_available=lambda: False),
             HOMEWORK_MODE_INSTRUCTIONS="",_format_attachment_for_model=lambda *a,**k:"",
             # Real module, not a stub: chat() asks it whether this turn has
             # images and whether the routed model can see them, and both
