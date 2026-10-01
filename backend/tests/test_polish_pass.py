@@ -170,12 +170,26 @@ def test_voice_catalog_routes_online_and_offline():
 
 
 def test_voice_list_offers_online_offline_and_cloned():
+    """Where the cloning engine (Chatterbox) is installed."""
+    import importlib.util
     from app import fast_speech, main
-    with patch.object(main.db, "list_tts_voices", AsyncMock(return_value=[{"id": 5, "name": "Mine"}])),             patch.object(fast_speech, "offline_ready", return_value=True):
-        voices = asyncio.run(main.list_tts_voices())["voices"]
-    kinds = {v["kind"] for v in voices}
-    assert {"online", "offline", "cloned"} <= kinds
-    assert any(v["id"] == "default" and "offline" in v["name"].lower() for v in voices)
+    real = importlib.util.find_spec
+    with patch.object(main.db, "list_tts_voices", AsyncMock(return_value=[{"id": 5, "name": "Mine"}])),          patch.object(fast_speech, "offline_ready", return_value=True),          patch("importlib.util.find_spec", lambda name, *a: object() if name == "chatterbox" else real(name, *a)):
+        listing = asyncio.run(main.list_tts_voices())
+    kinds = {v["kind"] for v in listing["voices"]}
+    assert {"online", "offline", "cloned"} <= kinds and listing["cloning"] is True
+    assert any(v["id"] == "default" and "offline" in v["name"].lower() for v in listing["voices"])
+
+
+def test_without_chatterbox_cloning_and_its_voice_are_not_offered():
+    """The installers leave Chatterbox out: nothing that needs it is listed."""
+    import importlib.util
+    from app import fast_speech, main
+    real = importlib.util.find_spec
+    with patch.object(main.db, "list_tts_voices", AsyncMock(return_value=[{"id": 5, "name": "Mine"}])),          patch.object(fast_speech, "offline_ready", return_value=True),          patch("importlib.util.find_spec", lambda name, *a: None if name == "chatterbox" else real(name, *a)):
+        listing = asyncio.run(main.list_tts_voices())
+    assert listing["cloning"] is False
+    assert not any(v["kind"] == "cloned" or v["id"] == "chatterbox-default" for v in listing["voices"])
 
 
 def test_offline_voice_is_listed_only_when_installed_and_nova_still_speaks():

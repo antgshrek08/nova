@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1] / 'app'
 package = types.ModuleType('daily_checks')
 package.__path__ = [str(ROOT)]
 sys.modules[package.__name__] = package
-for name in ('db', 'providers', 'agents', 'telemetry'):
+for name in ('db', 'providers', 'agents', 'telemetry', 'config', 'sentinel'):
     module = types.ModuleType('daily_checks.' + name)
     sys.modules[module.__name__] = module
     setattr(package, name, module)
@@ -31,6 +31,9 @@ class DailyChecks(unittest.IsolatedAsyncioTestCase):
         db.update_task = AsyncMock(side_effect=lambda task_id, **fields: {'id': task_id, **fields})
         package.agents.registry = types.SimpleNamespace(broadcast_task=AsyncMock())
         package.telemetry.snapshot = lambda: {}
+        # OpenRouter set up, on a developer's copy: every daily job applies.
+        package.config.openrouter_api_key = lambda: 'k'
+        package.sentinel.is_checkout = lambda: True
         calls = []
         async def fail(model, messages):
             calls.append(model)
