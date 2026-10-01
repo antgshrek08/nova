@@ -52,7 +52,15 @@ def platform_args() -> tuple[list[str], dict]:
         # the newest version has none, uv picks the newest version that does,
         # instead of compiling one for the build machine's macOS.
         no_build = [arg for pkg in COMPILED for arg in ("--only-binary", pkg)]
-        return ["--python-platform", f"{arch}-apple-darwin", *no_build], {"MACOSX_DEPLOYMENT_TARGET": MACOS_TARGET}
+        overrides = []
+        if arch == "x86_64":
+            # cryptography stopped publishing Intel Mac builds after 48, but the
+            # Gmail/Calendar helper asks for 50+. 48 is the newest an Intel Mac
+            # can run; the release build checks the helper starts with it.
+            path = Path(tempfile.gettempdir()) / "nova-intel-overrides.txt"
+            path.write_text("cryptography==48.0.0\n", encoding="utf-8")
+            overrides = ["--override", str(path)]
+        return ["--python-platform", f"{arch}-apple-darwin", *no_build, *overrides], {"MACOSX_DEPLOYMENT_TARGET": MACOS_TARGET}
     if sys.platform.startswith("linux"):
         arch = "aarch64" if machine in ("arm64", "aarch64") else "x86_64"
         return ["--python-platform", f"{arch}-manylinux_{LINUX_GLIBC}"], {}
