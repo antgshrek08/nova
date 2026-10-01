@@ -174,8 +174,13 @@ jobs:
             pkill -f "Nova.app/Contents" 2>/dev/null || true
             pkill -f nova-bin 2>/dev/null || true
             pkill -f "uvicorn app.main:app" 2>/dev/null || true
+            pkill -f "from main import main" 2>/dev/null || true
             sleep 5
           }
+          # Like a user's computer: the folder the app's Python was built in
+          # isn't there, so anything that still points into it fails here.
+          mv ../../backend/python ../../backend/python-hidden-for-launch-check
+          trap 'mv ../../backend/python-hidden-for-launch-check ../../backend/python' EXIT
           # A placeholder Google sign-in, so the Gmail/Calendar helper starts.
           mkdir -p "$HOME/.ai-council"
           echo "GOOGLE_OAUTH_CLIENT_ID=release-check.apps.googleusercontent.com" > "$HOME/.ai-council/.env"

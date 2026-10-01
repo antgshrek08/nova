@@ -133,29 +133,17 @@ const WORKSPACE_MCP_ACCOUNTS = [
   { role: "school", port: 8102, credentialsDirName: "workspace-mcp-school" },
 ];
 
-function resolveWorkspaceMcpExe() {
-  const bundled = path.join(backendDir, "python", isWindows ? path.join("Scripts", "workspace-mcp.exe") : path.join("bin", "workspace-mcp"));
-  if (fs.existsSync(bundled)) return bundled;
-  const candidates = isWindows
-    ? [
-        path.join(backendDir, ".venv", "Scripts", "workspace-mcp.exe"),
-        path.join(backendDir, "venv", "Scripts", "workspace-mcp.exe"),
-        "workspace-mcp.exe",
-      ]
-    : [
-        path.join(backendDir, ".venv", "bin", "workspace-mcp"),
-        path.join(backendDir, "venv", "bin", "workspace-mcp"),
-        "workspace-mcp",
-      ];
-  for (const c of candidates) {
-    if (path.isAbsolute(c) && fs.existsSync(c)) {
-      return c;
-    }
-  }
-  // Not installed here: Gmail and Calendar stay off, nothing else changes.
-  return null;
+// Nova's own Python runs the helper (it's in backend/requirements.txt). Not
+// its workspace-mcp launcher: installers write the build machine's folder into
+// those launchers, so they only work where they were built.
+const WORKSPACE_MCP_RUN = "import sys; sys.argv[0] = 'workspace-mcp'; from main import main; sys.exit(main())";
+function workspaceMcpInstalled() {
+  return new Promise((resolve) => {
+    const { execFile } = require("node:child_process");
+    execFile(pythonExe, ["-c", "import importlib.metadata as m; m.version('workspace-mcp')"],
+      { windowsHide: true, timeout: 20000 }, (err) => resolve(!err));
+  });
 }
-const workspaceMcpExe = resolveWorkspaceMcpExe();
 // google_workspace_mcp needs GOOGLE_OAUTH_CLIENT_ID/SECRET, which live in
 // the same shared ~/.ai-council/.env every other API key in this app uses
 // (see backend/app/config.py) -- read directly here rather than duplicating
@@ -219,10 +207,11 @@ function startWorkspaceMcpProcess(role, port, credentialsDirName, clientId, clie
   fs.mkdirSync(credentialsDir, { recursive: true });
 
   const proc = spawn(
-    workspaceMcpExe,
-    ["--single-user", "--transport", "streamable-http", "--tools", "gmail", "calendar"],
+    pythonExe,
+    ["-c", WORKSPACE_MCP_RUN, "--single-user", "--transport", "streamable-http", "--tools", "gmail", "calendar"],
     {
-      cwd: backendDir,
+      // Its own folder, so nothing named main.py elsewhere can stand in for it.
+      cwd: credentialsDir,
       windowsHide: true,
       env: {
         ...process.env,
@@ -254,7 +243,7 @@ async function startWorkspaceMcpIfConfigured() {
   // No-op, not an error, for anyone who hasn't set up Google OAuth at all --
   // Gmail/Calendar are optional, the rest of the app must not depend on them.
   if (!clientId || !clientSecret) return;
-  if (!workspaceMcpExe) {
+  if (!await workspaceMcpInstalled()) {
     console.warn("Google sign-in is set up, but workspace-mcp isn't installed; Gmail and Calendar are off.");
     return;
   }
