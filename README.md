@@ -42,16 +42,74 @@ connections. Every main screen has a **?** button with a short guide.
 
 ## Install
 
-### Windows
+Download Nova from the **[latest release](../../releases/latest)**, then follow
+the steps for your computer. Nothing else is needed: each download includes
+everything Nova uses. Not sure which file fits your computer? See
+**[Which computers can run Nova](DEVICES.md)**.
 
-Download the installer from the [Releases](../../releases) page and run it. Releases have
-installers for macOS (.dmg, for Apple-chip and Intel Macs) and Linux (.AppImage, .deb) too.
+### Windows 10 and 11
 
-**[Which computers can run Nova, and which file to download](DEVICES.md)**: Windows 10
-and 11, Macs on macOS 13.5 Ventura or newer (Apple chip or Intel), and 64-bit Linux such as
-Ubuntu 20.04 or newer.
+1. Download **`Nova-Setup-<version>.exe`**.
+2. Open it. Nova installs in a few seconds (no admin password needed) and
+   opens by itself.
+3. If a blue **"Windows protected your PC"** screen appears, click **More
+   info**, then **Run anyway**. You only see this the first time.
 
-Or from source: install [Python 3.12+](https://www.python.org/downloads/) and
+Nova is then in the Start menu and on the desktop. To keep it on the taskbar,
+right-click its icon while it's open and choose **Pin to taskbar**.
+
+### Mac (macOS 13.5 Ventura or newer)
+
+1. Check your chip: Apple menu (top-left) › **About This Mac**.
+   - **Chip: Apple M1, M2, M3…** → download **`Nova-<version>-arm64.dmg`**
+   - **Processor: Intel** → download **`Nova-<version>.dmg`** (no `arm64`)
+2. Open the `.dmg` and drag **Nova** into **Applications**.
+3. Open Nova from Applications or Launchpad.
+4. The first time, macOS says it can't verify Nova. Click **Done**, then open
+   **System Settings › Privacy & Security**, scroll down, and click **Open
+   Anyway**. You only do this once.
+
+When Nova first asks to use other apps for you, turn it on in **Privacy &
+Security › Accessibility** and **Screen Recording**. Onboarding takes you
+there.
+
+### Linux (64-bit, Ubuntu 20.04 or newer and similar)
+
+**Ubuntu, Debian, Mint, Pop!_OS:** download **`nova_<version>_amd64.deb`** and
+open it to install with your software center, or run:
+
+```bash
+sudo apt install ./nova_*_amd64.deb
+```
+
+Then open **Nova** from your apps menu.
+
+**Any other distribution:** download **`Nova-<version>.AppImage`**, then:
+
+```bash
+chmod +x Nova-*.AppImage
+./Nova-*.AppImage
+```
+
+On Ubuntu 22.04 or newer, AppImages also need `sudo apt install libfuse2`
+(on 24.04 it's `libfuse2t64`).
+
+### After you install
+
+Nova's first run walks you through everything: your name, the look, and
+**an AI model to think with**. The quickest is a free OpenRouter key, which
+takes about two minutes, and Nova shows you how. If you already pay for ChatGPT
+or Claude, Nova can use that instead. Every main screen has a **?** button with
+a short guide.
+
+**Free local models (optional):** install [Ollama](https://ollama.com), then
+pick a model in onboarding or Settings › Models. These run on your computer and
+work offline.
+
+<details>
+<summary><b>Run from source (for developers)</b></summary>
+
+**Windows:** install [Python 3.12+](https://www.python.org/downloads/) and
 [Node.js 20+](https://nodejs.org), then:
 
 ```powershell
@@ -66,10 +124,10 @@ npm run build
 npm start
 ```
 
-### macOS and Linux
+**macOS and Linux:**
 
 ```bash
-git clone <this repository>
+git clone https://github.com/antgshrek08/nova.git
 cd nova
 ./install.sh            # add --no-voice to skip the ~2 GB voice packages
 cd frontend && npm start
@@ -82,10 +140,7 @@ environment and the app, and tells you what is not available on your system.
 Prefer a browser tab over the desktop app? Run `./mac/start-nova.sh` or
 `./linux/start-nova.sh` and Nova opens at `http://127.0.0.1:8000/app/`.
 
-### Free local models (optional)
-
-Install [Ollama](https://ollama.com), then pick a model in onboarding or
-Settings, Models. Nova also works with only cloud models.
+</details>
 
 ## Windows, macOS and Linux
 
